@@ -3,7 +3,7 @@ from picobricks import WS2812
 import utime
 push_button = Pin(10,Pin.IN,Pin.PULL_DOWN)#initialize digital pin 10 as an input
 ldr = ADC(Pin(27))
-ws = WS2812(6, brightness=0.1)
+ws = WS2812(brightness=0.1)
 #define the input and output pins
 
 #define colors
@@ -68,11 +68,45 @@ def rotate_colors_when_dark_and_routine_enabled():
         ws.pixels_show()
         print(utime.ticks_ms(), "we are turning of the ws2812")
         
-
+previous_ticks_ms = 0
+previous_button_state = 0
+long_press_in_progres = False
+is_routine_enabled = False
+color_index = 0
 def switch_color_on_button_long_press():
-    print('switch_color_on_button_long_press')    
-    
-        
+    global previous_ticks_ms
+    global previous_button_state    
+    global long_press_in_progres
+    global is_routine_enabled
+    global color_index
+
+    if push_button.value() == 0 and previous_button_state == 1:
+        print(utime.ticks_ms(), "click")
+        is_routine_enabled = not is_routine_enabled
+
+    if is_routine_enabled and ldr.read_u16() > 10000:
+        ws.pixels_fill(COLORS[color_index])
+        ws.pixels_show()
+
+    if is_routine_enabled == False or ldr.read_u16() <= 10000:
+        ws.pixels_fill((0, 0, 0))
+        ws.pixels_show()
+
+
+    if push_button.value() == 1 and previous_button_state == 0:
+        long_press_in_progres = True
+        previous_ticks_ms = utime.ticks_ms()
+
+    if long_press_in_progres and push_button.value() == 1 and previous_button_state == 1 and (utime.ticks_ms() - previous_ticks_ms) >= 1000:
+        print("long click")
+        long_press_in_progres = False
+        color_index += 1
+        if color_index > len(COLORS):
+            color_index = 0
+
+
+    previous_button_state = push_button.value()
+
 while True:
     utime.sleep(0.1)
     #rotate_colors_when_dark_blocking()
