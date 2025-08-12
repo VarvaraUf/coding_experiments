@@ -73,25 +73,31 @@ previous_button_state = 0
 long_press_in_progres = False
 is_routine_enabled = False
 color_index = 0
+is_long_click_hapened = False
 def switch_color_on_button_long_press():
     global previous_ticks_ms
     global previous_button_state    
     global long_press_in_progres
     global is_routine_enabled
     global color_index
+    global is_long_click_hapened    
 
+    # print(utime.ticks_ms(), "previous_button_state", previous_button_state, "push_button.value()", push_button.value(), "is_long_click_hapened", is_long_click_hapened)
     if push_button.value() == 0 and previous_button_state == 1:
-        print(utime.ticks_ms(), "click")
-        is_routine_enabled = not is_routine_enabled
+        if is_long_click_hapened == False:
+            is_routine_enabled = not is_routine_enabled
+            print(utime.ticks_ms(),"click")
 
+        is_long_click_hapened = False
+
+    # print(utime.ticks_ms(), "ldr.read_u16() > 10000", ldr.read_u16() > 10000,"is_routine_enabled",is_routine_enabled)
     if is_routine_enabled and ldr.read_u16() > 10000:
         ws.pixels_fill(COLORS[color_index])
         ws.pixels_show()
 
     if is_routine_enabled == False or ldr.read_u16() <= 10000:
         ws.pixels_fill((0, 0, 0))
-        ws.pixels_show()
-
+        ws.pixels_show()       
 
     if push_button.value() == 1 and previous_button_state == 0:
         long_press_in_progres = True
@@ -99,16 +105,16 @@ def switch_color_on_button_long_press():
 
     if long_press_in_progres and push_button.value() == 1 and previous_button_state == 1 and (utime.ticks_ms() - previous_ticks_ms) >= 1000:
         print("long click")
+        is_long_click_hapened = True
         long_press_in_progres = False
         color_index += 1
-        if color_index > len(COLORS):
+        if color_index == len(COLORS):
             color_index = 0
-
 
     previous_button_state = push_button.value()
 
 while True:
-    utime.sleep(0.1)
+    utime.sleep(0.2)
     #rotate_colors_when_dark_blocking()
     #rotate_colors_when_dark_and_routine_enabled()
     switch_color_on_button_long_press()
