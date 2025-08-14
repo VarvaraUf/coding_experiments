@@ -15,7 +15,18 @@ YELLOW = (255, 255, 0)
 TURCOISE = (0, 255, 255)
 WHITE = (255, 255, 255)
 ORANGE = (255, 165, 0)
-COLORS = (RED, ORANGE, YELLOW, GREEN, BLUE, TURCOISE, VIOLET, WHITE)
+LIGHT_BLUE = (48, 200, 207)
+LIGHT_PINK = (255, 148, 202)
+LIGHT_YELLOW = (255, 255, 132)
+LIGHT_GREENESH = (128, 255, 255)
+LIGHT_ORANGE = (237, 165, 84)
+DARCK_PINK = (255, 0, 128)
+LIGHT_RED = (255, 115, 115)
+DARCK_GREEN = (128, 128, 0)
+LIGHT_GREEN = (128, 255, 128)
+GOLLDEN = (151, 75, 0)
+
+COLORS = (RED, ORANGE, YELLOW, GREEN, BLUE, TURCOISE, VIOLET, WHITE, LIGHT_BLUE, LIGHT_PINK, LIGHT_YELLOW, LIGHT_GREENESH, LIGHT_ORANGE, DARCK_PINK, LIGHT_RED, DARCK_GREEN, LIGHT_GREEN, GOLLDEN)
 #RGB color Code
 
 def rotate_colors_when_dark_blocking():
@@ -113,8 +124,113 @@ def switch_color_on_button_long_press():
 
     previous_button_state = push_button.value()
 
+    
+has_time_passed = True
+def rotate_colors():
+    global previous_ticks_ms
+    global previous_button_state 
+    global color_index
+    global has_time_passed
+    global is_routine_enabled
+
+    print(utime.ticks_ms())
+    if push_button.value() == 0 and previous_button_state == 1:
+        is_routine_enabled = not is_routine_enabled
+        print(utime.ticks_ms(),"is_routine_enabled",is_routine_enabled)
+
+    if is_routine_enabled and has_time_passed and ldr.read_u16() > 10000:
+        ws.pixels_fill(COLORS[color_index])
+        ws.pixels_show()
+        previous_ticks_ms = utime.ticks_ms()
+        
+        print(utime.ticks_ms(),"is_routine_enabled",is_routine_enabled,"has_time_passed",has_time_passed)
+
+    has_time_passed = False
+
+    if is_routine_enabled and (utime.ticks_ms() - previous_ticks_ms) >= 500:
+        has_time_passed = True
+        color_index += 1
+        if color_index == len(COLORS):
+            color_index = 0
+        print(utime.ticks_ms(),"has_time_passed",has_time_passed,"is_routine_enabled",is_routine_enabled)
+
+    
+
+    previous_button_state = push_button.value()
+
+change_the_speed = [500, 450, 400, 350, 300, 250, 200, 150, 100, 50, 0]
+change_speed_index = 0
+time_from_a_long_time = 0
+def rotate_colors_and_adgust_speed():
+    global previous_ticks_ms
+    global previous_button_state 
+    global color_index
+    global has_time_passed
+    global is_routine_enabled
+    global change_the_speed
+    global is_long_click_hapened  
+    global long_press_in_progres  
+    global change_speed_index 
+    global time_from_a_long_time
+    # print(utime.ticks_ms(), 
+    #       "previous_button_state=", previous_button_state,
+    #       "push_button.value=",push_button.value(),
+    #       "is_long_click_hapened=",is_long_click_hapened)
+    if push_button.value() == 0 and previous_button_state == 1:
+        if is_long_click_hapened == False:
+            print(utime.ticks_ms(),"click")
+            is_routine_enabled = not is_routine_enabled
+            print(utime.ticks_ms(),"is_routine_enabled",is_routine_enabled)
+
+        is_long_click_hapened = False
+
+    if is_routine_enabled and has_time_passed and ldr.read_u16() > 10000:
+        ws.pixels_fill(COLORS[color_index])
+        ws.pixels_show()
+        print(utime.ticks_ms(),"is_routine_enabled",is_routine_enabled,"has_time_passed",has_time_passed)
+        time_from_a_long_time = utime.ticks_ms()
+        
+        
+
+    has_time_passed = False
+
+    if is_routine_enabled and (utime.ticks_ms() - time_from_a_long_time) >= change_the_speed[change_speed_index]:
+        has_time_passed = True
+        color_index += 1
+        if color_index == len(COLORS):
+            color_index = 0
+        print(utime.ticks_ms(),"has_time_passed",has_time_passed,"is_routine_enabled",is_routine_enabled)
+
+    if push_button.value() == 1 and previous_button_state == 0:
+        long_press_in_progres = True
+        previous_ticks_ms = utime.ticks_ms()
+
+    # print(utime.ticks_ms(), 
+    #       "previous_button_state=", previous_button_state,
+    #       "push_button.value=",push_button.value(),
+    #       "is_long_click_hapened=",is_long_click_hapened,
+    #       "long_press_in_progres", long_press_in_progres,
+    #       utime.ticks_ms() - previous_ticks_ms)
+
+    if long_press_in_progres and push_button.value() == 1 and previous_button_state == 1 and (utime.ticks_ms() - previous_ticks_ms) >= 1000:
+        print("long click")
+        is_long_click_hapened = True
+        long_press_in_progres = False
+        change_speed_index += 1
+        
+        if change_speed_index == len(change_the_speed):
+            change_speed_index = 0
+        print(utime.ticks_ms(), change_the_speed[change_speed_index])
+
+    previous_button_state = push_button.value()
+
+
+
+
 while True:
-    utime.sleep(0.2)
+    utime.sleep(0.02)
     #rotate_colors_when_dark_blocking()
     #rotate_colors_when_dark_and_routine_enabled()
-    switch_color_on_button_long_press()
+    #switch_color_on_button_long_press()
+    #rotate_colors()
+    rotate_colors_and_adgust_speed()
