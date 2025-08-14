@@ -161,13 +161,17 @@ def rotate_colors():
 change_the_speed = [500, 450, 400, 350, 300, 250, 200, 150, 100, 50, 0]
 change_speed_index = 0
 last_color_change_ms = 0
+last_long_press_ms = 0
+indicate_long_press = False
 def rotate_colors_and_adjust_speed():
     global previous_ticks_ms
     global previous_button_state 
+    global last_long_press_ms
     global color_index
     global has_time_passed
     global is_routine_enabled
     global change_the_speed
+    global indicate_long_press
     global is_long_press_hapened  
     global long_press_in_progres  
     global change_speed_index 
@@ -184,9 +188,10 @@ def rotate_colors_and_adjust_speed():
         is_long_press_hapened = False
 
     # turn led off
-    if is_routine_enabled == False or ldr.read_u16() <= 10000:
+    
+    if is_routine_enabled == False or indicate_long_press or ldr.read_u16() <= 10000:
         ws.pixels_fill((0, 0, 0))
-        ws.pixels_show()
+        ws.pixels_show()    
     else:
         if (utime.ticks_ms() - last_color_change_ms) >= change_the_speed[change_speed_index]:
             color_index += 1
@@ -213,11 +218,16 @@ def rotate_colors_and_adjust_speed():
         print("long press")
         is_long_press_hapened = True
         long_press_in_progres = False
+        indicate_long_press = True
         change_speed_index += 1
+        last_long_press_ms = utime.ticks_ms()        
         
         if change_speed_index == len(change_the_speed):
             change_speed_index = 0
         print(utime.ticks_ms(), "speed", change_the_speed[change_speed_index])
+
+    if (utime.ticks_ms() - last_long_press_ms) >= 500:
+        indicate_long_press = False
 
     previous_button_state = push_button.value()
 
