@@ -28,7 +28,6 @@ LIGHT_GREEN = (128, 255, 128)
 GOLLDEN = (151, 75, 0)
 
 COLORS = (RED, ORANGE, YELLOW, GREEN, BLUE, TURCOISE, VIOLET, WHITE, LIGHT_BLUE, LIGHT_PINK, LIGHT_YELLOW, LIGHT_GREENESH, LIGHT_ORANGE, DARCK_PINK, LIGHT_RED, DARCK_GREEN, LIGHT_GREEN, GOLLDEN)
-#RGB color Code
 
 def rotate_colors_when_dark_blocking():
     if(ldr.read_u16()>10000):#let's check the ldr sensor
@@ -45,12 +44,12 @@ def rotate_colors_when_dark_blocking():
         
         
 previous_button_state = 0
-previous_ticks_ms = 0
+long_press_start_time_ms = 0
 color_index = 0
 is_routine_enabled = False
 def rotate_colors_when_dark_and_routine_enabled():
     global previous_button_state
-    global previous_ticks_ms
+    global long_press_start_time_ms
     global color_index
     global is_routine_enabled
 
@@ -59,12 +58,12 @@ def rotate_colors_when_dark_and_routine_enabled():
     # Button falling edge detection
     if push_button.value() == 0 and previous_button_state == 1:
         is_routine_enabled = not is_routine_enabled  # toggle is_routine_enabled on/off
-        previous_ticks_ms = current_time  # reset timer so next change is in 500ms
+        long_press_start_time_ms = current_time  # reset timer so next change is in 500ms
         print(utime.ticks_ms(), "Button pressed, is_routine_enabled=", is_routine_enabled)        
             
     previous_button_state = push_button.value()
     
-    if is_routine_enabled and ldr.read_u16() > 10000 and utime.ticks_diff(current_time, previous_ticks_ms) >= 500:    
+    if is_routine_enabled and ldr.read_u16() > 10000 and utime.ticks_diff(current_time, long_press_start_time_ms) >= 500:    
         print(utime.ticks_ms(), "Fill and show color: ", COLORS[color_index])
         ws.pixels_fill(COLORS[color_index])
         ws.pixels_show()
@@ -73,21 +72,21 @@ def rotate_colors_when_dark_and_routine_enabled():
         if color_index == len(COLORS):
             color_index = 0
             
-        previous_ticks_ms = current_time  
+        long_press_start_time_ms = current_time  
         
     if is_routine_enabled == False or ldr.read_u16() <= 10000:
         ws.pixels_fill((0, 0, 0,))
         ws.pixels_show()
         print(utime.ticks_ms(), "we are turning of the ws2812")
         
-previous_ticks_ms = 0
+long_press_start_time_ms = 0
 previous_button_state = 0
 long_press_in_progres = False
 is_routine_enabled = False
 color_index = 0
 is_long_press_hapened = False
 def switch_color_on_button_long_press():
-    global previous_ticks_ms
+    global long_press_start_time_ms
     global previous_button_state    
     global long_press_in_progres
     global is_routine_enabled
@@ -113,9 +112,9 @@ def switch_color_on_button_long_press():
 
     if push_button.value() == 1 and previous_button_state == 0:
         long_press_in_progres = True
-        previous_ticks_ms = utime.ticks_ms()
+        long_press_start_time_ms = utime.ticks_ms()
 
-    if long_press_in_progres and push_button.value() == 1 and previous_button_state == 1 and (utime.ticks_ms() - previous_ticks_ms) >= 1000:
+    if long_press_in_progres and push_button.value() == 1 and previous_button_state == 1 and (utime.ticks_ms() - long_press_start_time_ms) >= 1000:
         print("long click")
         is_long_press_hapened = True
         long_press_in_progres = False
@@ -128,7 +127,7 @@ def switch_color_on_button_long_press():
     
 has_time_passed = True
 def rotate_colors():
-    global previous_ticks_ms
+    global long_press_start_time_ms
     global previous_button_state 
     global color_index
     global has_time_passed
@@ -142,13 +141,13 @@ def rotate_colors():
     if is_routine_enabled and has_time_passed and ldr.read_u16() > 10000:
         ws.pixels_fill(COLORS[color_index])
         ws.pixels_show()
-        previous_ticks_ms = utime.ticks_ms()
+        long_press_start_time_ms = utime.ticks_ms()
         
         print(utime.ticks_ms(),"is_routine_enabled",is_routine_enabled,"has_time_passed",has_time_passed)
 
     has_time_passed = False
 
-    if is_routine_enabled and (utime.ticks_ms() - previous_ticks_ms) >= 500:
+    if is_routine_enabled and (utime.ticks_ms() - long_press_start_time_ms) >= 500:
         has_time_passed = True
         color_index += 1
         if color_index == len(COLORS):
@@ -164,7 +163,7 @@ last_color_change_ms = 0
 last_long_press_ms = 0
 indicate_long_press = False
 def rotate_colors_and_adjust_speed():
-    global previous_ticks_ms
+    global long_press_start_time_ms
     global previous_button_state 
     global last_long_press_ms
     global color_index
@@ -204,7 +203,7 @@ def rotate_colors_and_adjust_speed():
 
     if push_button.value() == 1 and previous_button_state == 0:
         long_press_in_progres = True
-        previous_ticks_ms = utime.ticks_ms()
+        long_press_start_time_ms = utime.ticks_ms()
 
     # print(utime.ticks_ms(), 
     #       "previous_button_state=", previous_button_state,
@@ -213,7 +212,7 @@ def rotate_colors_and_adjust_speed():
     #       "long_press_in_progres", long_press_in_progres,
     #       utime.ticks_ms() - previous_ticks_ms)
 
-    if long_press_in_progres and push_button.value() == 1 and previous_button_state == 1 and (utime.ticks_ms() - previous_ticks_ms) >= 1000:
+    if long_press_in_progres and push_button.value() == 1 and previous_button_state == 1 and (utime.ticks_ms() - long_press_start_time_ms) >= 1000:
         print("long press")
         is_long_press_hapened = True
         long_press_in_progres = False
@@ -230,41 +229,43 @@ def rotate_colors_and_adjust_speed():
 
     previous_button_state = push_button.value()
 
-color_number = 0
-number_of_steps = 1
-number = 0
-last_time_led_was_changed = 0 
+hue_value = 0
+color_change_step_value = 1
+color_loops_counter = 0
+last_time_signal_led_changed_ms = 0 
 def rotate_rainbow_colors():
     global previous_button_state
     global is_routine_enabled
     global is_long_press_hapened
     global long_press_in_progres
-    global previous_ticks_ms
-    global color_number
-    global number_of_steps
-    global number
-    global last_time_led_was_change
+    global long_press_start_time_ms
+    global hue_value
+    global color_change_step_value
+    global color_loops_counter
+    global last_time_signal_led_changed_ms
+
+    if (utime.ticks_ms() - last_time_signal_led_changed_ms) >= 200:
+        led.value(0)
 
     if push_button.value() == 0 and previous_button_state == 1:
         if is_long_press_hapened == False:
             print("click")
             is_routine_enabled = not is_routine_enabled
             led.value(1)
-            last_time_led_was_changed = utime.ticks_ms()
+            last_time_signal_led_changed_ms = utime.ticks_ms()
 
-    if (utime.ticks_ms() - previous_ticks_ms) >= 2000:
-        led.value(0)
-        is_long_press_hapened = False
+        is_long_press_hapened = False    
+        
+    if is_routine_enabled and ldr.read_u16() > 10000:
+        print(utime.ticks_ms(),
+              "hue_value",hue_value,"step",color_change_step_value,"loops", color_loops_counter,"light level", ldr.read_u16())
+        hue_value += color_change_step_value
 
-    if is_routine_enabled and ldr.read_u16() > 1500:
-        print("change the color",color_number,number_of_steps, number, ldr.read_u16())
-        color_number += number_of_steps
+        if hue_value >= 360:
+            hue_value = 0
+            color_loops_counter += 1
 
-        if color_number >= 360:
-            color_number = 0
-            number += 1
-
-        ws.pixels_fill_hsv((color_number, 100, 100))
+        ws.pixels_fill_hsv((hue_value, 100, 100))
         ws.pixels_show()        
     else:
         ws.pixels_fill((0, 0, 0,))
@@ -273,26 +274,21 @@ def rotate_rainbow_colors():
 
     if push_button.value() == 1 and previous_button_state == 0:
         long_press_in_progres = True
-        previous_ticks_ms = utime.ticks_ms()
+        long_press_start_time_ms = utime.ticks_ms()
 
-    if long_press_in_progres and push_button.value() == 1 and previous_button_state == 1 and (utime.ticks_ms() - previous_ticks_ms) >= 1000:
+    if long_press_in_progres and push_button.value() == 1 and previous_button_state == 1 and (utime.ticks_ms() - long_press_start_time_ms) >= 1000:
         print("long press")
         long_press_in_progres = False
         is_long_press_hapened = True
 
-        number_of_steps += 1
-        if number_of_steps == 10:
-            number_of_steps = 1
+        color_change_step_value += 1
+        if color_change_step_value > 10:
+            color_change_step_value = 1
 
         led.value(1)
-        last_time_led_was_changed = utime.ticks_ms()
-
-    if (utime.ticks_ms() - previous_ticks_ms) >= 2000:
-        led.value(0)        
+        last_time_signal_led_changed_ms = utime.ticks_ms()      
             
     previous_button_state = push_button.value()
-
-    # ws.pixels_fill_hsv((360, 100, 100))
 
 
 while True:
