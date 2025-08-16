@@ -3,6 +3,7 @@ from picobricks import WS2812
 import utime
 push_button = Pin(10,Pin.IN,Pin.PULL_DOWN)#initialize digital pin 10 as an input
 ldr = ADC(Pin(27))
+led = Pin(7,Pin.OUT)
 ws = WS2812(brightness=0.1)
 #define the input and output pins
 
@@ -158,8 +159,7 @@ def rotate_colors():
 
     previous_button_state = push_button.value()
 
-change_the_speed = [500, 450, 400, 350, 300, 250, 200, 150, 100, 50, 0]
-change_speed_index = 0
+rotation_delay = 500
 last_color_change_ms = 0
 last_long_press_ms = 0
 indicate_long_press = False
@@ -170,11 +170,10 @@ def rotate_colors_and_adjust_speed():
     global color_index
     global has_time_passed
     global is_routine_enabled
-    global change_the_speed
+    global rotation_delay
     global indicate_long_press
     global is_long_press_hapened  
-    global long_press_in_progres  
-    global change_speed_index 
+    global long_press_in_progres   
     global last_color_change_ms
     # print(utime.ticks_ms(), 
     #       "previous_button_state=", previous_button_state,
@@ -193,7 +192,7 @@ def rotate_colors_and_adjust_speed():
         ws.pixels_fill((0, 0, 0))
         ws.pixels_show()    
     else:
-        if (utime.ticks_ms() - last_color_change_ms) >= change_the_speed[change_speed_index]:
+        if (utime.ticks_ms() - last_color_change_ms) >= rotation_delay:
             color_index += 1
             if color_index == len(COLORS):
                 color_index = 0
@@ -219,19 +218,81 @@ def rotate_colors_and_adjust_speed():
         is_long_press_hapened = True
         long_press_in_progres = False
         indicate_long_press = True
-        change_speed_index += 1
-        last_long_press_ms = utime.ticks_ms()        
-        
-        if change_speed_index == len(change_the_speed):
-            change_speed_index = 0
-        print(utime.ticks_ms(), "speed", change_the_speed[change_speed_index])
+        last_long_press_ms = utime.ticks_ms()    
+
+        rotation_delay -= 50
+        if rotation_delay == 0:
+            rotation_delay = 500
+        print(utime.ticks_ms(), "speed", rotation_delay)
 
     if (utime.ticks_ms() - last_long_press_ms) >= 500:
         indicate_long_press = False
 
     previous_button_state = push_button.value()
 
+color_number = 0
+number_of_steps = 1
+number = 0
+last_time_led_was_changed = 0 
+def rotate_rainbow_colors():
+    global previous_button_state
+    global is_routine_enabled
+    global is_long_press_hapened
+    global long_press_in_progres
+    global previous_ticks_ms
+    global color_number
+    global number_of_steps
+    global number
+    global last_time_led_was_change
 
+    if push_button.value() == 0 and previous_button_state == 1:
+        if is_long_press_hapened == False:
+            print("click")
+            is_routine_enabled = not is_routine_enabled
+            led.value(1)
+            last_time_led_was_changed = utime.ticks_ms()
+
+    if (utime.ticks_ms() - previous_ticks_ms) >= 2000:
+        led.value(0)
+        is_long_press_hapened = False
+
+    if is_routine_enabled and ldr.read_u16() > 1500:
+        print("change the color",color_number,number_of_steps, number, ldr.read_u16())
+        color_number += number_of_steps
+
+        if color_number >= 360:
+            color_number = 0
+            number += 1
+
+        ws.pixels_fill_hsv((color_number, 100, 100))
+        ws.pixels_show()        
+    else:
+        ws.pixels_fill((0, 0, 0,))
+        ws.pixels_show()
+
+
+    if push_button.value() == 1 and previous_button_state == 0:
+        long_press_in_progres = True
+        previous_ticks_ms = utime.ticks_ms()
+
+    if long_press_in_progres and push_button.value() == 1 and previous_button_state == 1 and (utime.ticks_ms() - previous_ticks_ms) >= 1000:
+        print("long press")
+        long_press_in_progres = False
+        is_long_press_hapened = True
+
+        number_of_steps += 1
+        if number_of_steps == 10:
+            number_of_steps = 1
+
+        led.value(1)
+        last_time_led_was_changed = utime.ticks_ms()
+
+    if (utime.ticks_ms() - previous_ticks_ms) >= 2000:
+        led.value(0)        
+            
+    previous_button_state = push_button.value()
+
+    # ws.pixels_fill_hsv((360, 100, 100))
 
 
 while True:
@@ -240,4 +301,5 @@ while True:
     #rotate_colors_when_dark_and_routine_enabled()
     #switch_color_on_button_long_press()
     #rotate_colors()
-    rotate_colors_and_adjust_speed()
+    #rotate_colors_and_adjust_speed()
+    rotate_rainbow_colors()

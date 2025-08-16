@@ -12,6 +12,57 @@ import rp2
 from math import ceil
 from os import uname
 
+def hsv_to_rgb(h, s, v):
+    """
+    Converts an HSV color value to RGB.
+
+    Conversion formula adapted from http://en.wikipedia.org/wiki/HSV_color_space.
+    Assumes h is in [0, 360] and s and v are in [0, 100].
+    Returns a tuple of 3 integers in the range [0, 255].
+
+    :param h: The hue, in degrees [0, 360].
+    :param s: The saturation, in percent [0, 100].
+    :param v: The value, in percent [0, 100].
+    :return: A tuple of 3 integers representing the RGB color (R, G, B).
+    """
+    if not 0 <= h <= 360 or not 0 <= s <= 100 or not 0 <= v <= 100:
+        raise ValueError("HSV values must be in the range H[0, 360], S[0, 100], V[0, 100]")
+
+    # Scale s and v to the range [0, 1]
+    s /= 100.0
+    v /= 100.0
+
+    if s == 0.0:
+        # If saturation is 0, the color is a shade of gray
+        r, g, b = v, v, v
+        return int(r * 255), int(g * 255), int(b * 255)
+
+    # The conversion is done in 6 sectors of the color wheel.
+    # This determines which sector the hue falls into.
+    sector = h / 60.0
+    i = int(sector)
+    f = sector - i  # fractional part of the sector
+
+    # Calculate the three temporary values that will be assigned to R, G, and B.
+    p = v * (1.0 - s)
+    q = v * (1.0 - s * f)
+    t = v * (1.0 - s * (1.0 - f))
+
+    if i == 0:
+        r, g, b = v, t, p
+    elif i == 1:
+        r, g, b = q, v, p
+    elif i == 2:
+        r, g, b = p, v, t
+    elif i == 3:
+        r, g, b = p, q, v
+    elif i == 4:
+        r, g, b = t, p, v
+    else:  # i == 5
+        r, g, b = v, p, q
+
+    return int(r * 255), int(g * 255), int(b * 255)
+
 ##########Motor Driver Library##########
 class MotorDriver:
     def __init__(self, i2c):
@@ -717,6 +768,10 @@ class WS2812():
     def pixels_fill(self, color):
         for i in range(len(self.ar)):
             self.pixels_set(i, color)
+
+    def pixels_fill_hsv(self, hsv_color):
+        rgb_color = hsv_to_rgb(*hsv_color)
+        self.pixels_fill(rgb_color)
 
     def color_chase(self, color, wait):
         for i in range(self.num_leds):
