@@ -221,6 +221,7 @@ while True:#while loop
     #blink_pattern_twice_on_button_click()
     #print_double_click_on_double_click()
     #blinck_as_many_times_as_button_clicked()
-    #button_long_press()
-    loop_for_functions()
+    button_long_press()
+    #loop_for_functions()
+    
     
