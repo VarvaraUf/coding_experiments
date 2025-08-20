@@ -19,4 +19,6 @@ while True:
 	oled.text(str(int(humidity)),55,55)
 	oled.show()
 	utime.sleep(3.0)
+
+	
                  
