@@ -1,5 +1,5 @@
 from machine import Pin,ADC,PWM,I2C
-from picobricks import SSD1306_I2C, SHTC3
+from picobricks import SSD1306_I2C, SHTC3,WS2812
 import utime 
 
 WIDTH=128
@@ -11,7 +11,13 @@ shtc_sensor = SHTC3(i2c)
 push_button = Pin(10,Pin.IN,Pin.PULL_DOWN)
 led_pwm = PWM(Pin(7))
 led = Pin(7, Pin.OUT)
+ws = WS2812(brightness=0.1)
+ldr = ADC(Pin(27))
 pot=ADC(Pin(26,Pin.IN))
+
+
+
+
 
 led_pwm.freq(1000)
 
@@ -129,24 +135,26 @@ def adjust_blinck_speed_and_display_the_speed_and_enable_by_button():
 def manage_rgb_led_speed_and_brightness():
     previous_button_state = 0
     long_press_in_progres = False
-    previous_ticks_ms = 0
+    long_press_start_time_ms = 0
     previous_signal_time = 0
     is_long_press_hapened = False
     is_routine_enabled = False
     manage_state = "speed"
+    color_index = 1
+    brightness = 0.01
+    speed = 1
     
 
     while True:
         utime.sleep(0.2)
 
         current_button_state = push_button.value()
-        print("current_button_state",current_button_state,"previous_button_state",previous_button_state,(utime.ticks_ms() - previous_ticks_ms),"manage_state",manage_state)
+        # print("current_button_state",current_button_state,"previous_button_state",previous_button_state,(utime.ticks_ms() - long_press_start_time_ms),"manage_state",manage_state)
         if current_button_state == 1 and previous_button_state == 0:
             long_press_in_progres = True
-            previous_ticks_ms = utime.ticks_ms()
-            
+            long_press_start_time_ms = utime.ticks_ms()            
 
-        if long_press_in_progres and current_button_state == 1 and previous_button_state == 1 and (utime.ticks_ms() - previous_ticks_ms) >= 1000:
+        if long_press_in_progres and current_button_state == 1 and previous_button_state == 1 and (utime.ticks_ms() - long_press_start_time_ms) >= 1000:
             print("long click")
             led.value(1)
             previous_signal_time = utime.ticks_ms()
@@ -160,17 +168,41 @@ def manage_rgb_led_speed_and_brightness():
                 led.value(1)
                 previous_signal_time = utime.ticks_ms()
 
-                if manage_state == "Brightness":
+                if manage_state == "brightness":
                     manage_state = "speed"
-
                 else:
-                    manage_state = "Brightness"
+                    manage_state = "brightness"
 
             is_long_press_hapened = False
-
         if (utime.ticks_ms() - previous_signal_time) >= 100:
             led.value(0)
 
+        oled.fill(0)
+        if is_routine_enabled == True:            
+            color_index += 1
+            if color_index == 360:
+                color_index = 1
+
+            ws.pixels_fill_hsv((color_index, 100, 100))
+            ws.pixels_show()        
+
+            if manage_state == "brightness":
+                oled.text("-",12, 21)
+            else:
+                oled.text("-",12, 43)            
+        
+            oled.text("brightness:",21,21)
+            oled.text(str(brightness),21,32)
+            oled.text("speed:",21,43)
+            oled.text(str(speed),21,53)
+            oled.show()
+
+        else:
+            oled.show()
+            ws.pixels_fill((0,0,0))
+            ws.pixels_show()
+
+        
             
 
                  
