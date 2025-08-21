@@ -126,10 +126,69 @@ def adjust_blinck_speed_and_display_the_speed_and_enable_by_button():
         # print(utime.ticks_ms(), "previous_button_state", previous_button_state)
 
 
+def manage_rgb_led_speed_and_brightness():
+    previous_button_state = 0
+    long_press_in_progres = False
+    previous_ticks_ms = 0
+    previous_signal_time = 0
+    is_long_press_hapened = False
+    is_routine_enabled = False
+    manage_state = "speed"
+    
+
+    while True:
+        utime.sleep(0.2)
+
+        current_button_state = push_button.value()
+        print("current_button_state",current_button_state,"previous_button_state",previous_button_state,(utime.ticks_ms() - previous_ticks_ms),"manage_state",manage_state)
+        if current_button_state == 1 and previous_button_state == 0:
+            long_press_in_progres = True
+            previous_ticks_ms = utime.ticks_ms()
+            
+
+        if long_press_in_progres and current_button_state == 1 and previous_button_state == 1 and (utime.ticks_ms() - previous_ticks_ms) >= 1000:
+            print("long click")
+            led.value(1)
+            previous_signal_time = utime.ticks_ms()
+            is_long_press_hapened = True
+            long_press_in_progres = False
+            is_routine_enabled = not is_routine_enabled
+
+        if current_button_state == 0 and previous_button_state == 1:
+            if is_long_press_hapened == False:
+                print("click")
+                led.value(1)
+                previous_signal_time = utime.ticks_ms()
+
+                if manage_state == "Brightness":
+                    manage_state = "speed"
+
+                else:
+                    manage_state = "Brightness"
+
+            is_long_press_hapened = False
+
+        if (utime.ticks_ms() - previous_signal_time) >= 100:
+            led.value(0)
+
+            
+
+                 
+
+                
+                    
+
+
+
+        # print("manage_state",manage_state)
+        previous_button_state = push_button.value()
+
+
 
 
 # meet_the_light_bulp()
 #adjust_blinck_speed()
 #adjust_blinck_speed_and_display_the_speed()
-adjust_blinck_speed_and_display_the_speed_and_enable_by_button()
+# adjust_blinck_speed_and_display_the_speed_and_enable_by_button()
+manage_rgb_led_speed_and_brightness() 
 
