@@ -39,6 +39,7 @@ def map_u16_value(v, min, max):
 def meet_the_light_bulp():
     while True:
         led_pwm.duty_u16(pot.read_u16())
+
         print("potantiometer1",pot.read_u16())
         
         utime.sleep(0.3)
@@ -86,6 +87,7 @@ def adjust_blinck_speed_and_display_the_speed_and_enable_by_button():
     previous_ticks_ms = 0
     is_long_press_in_progress = False
     is_routine_enabled = False
+    
     
 
     while True:
@@ -141,8 +143,10 @@ def manage_rgb_led_speed_and_brightness():
     is_routine_enabled = False
     manage_state = "speed"
     color_index = 1
-    brightness = 0.01
+    brightness = 0.1
     speed = 1
+    speed_string = str(0)
+    brightness_string = str(0)
     
 
     while True:
@@ -178,43 +182,137 @@ def manage_rgb_led_speed_and_brightness():
             led.value(0)
 
         oled.fill(0)
-        if is_routine_enabled == True:            
-            color_index += 1
-            if color_index == 360:
+        ws.pixels_fill((0,0,0))
+        if is_routine_enabled == True:
+            potentiometer_value = pot.read_u16()
+            color_index += speed
+            # print((utime.ticks_ms() - previous_time_led_was_changed),"speed",speed,"color_index",color_index)brightness = map_u16_value(pot.read_u16(),0,100)
+                
+            if color_index >= 360:
                 color_index = 1
 
             ws.pixels_fill_hsv((color_index, 100, 100))
-            ws.pixels_show()        
+            ws.brightness = brightness        
 
             if manage_state == "brightness":
-                oled.text("-",12, 21)
+                oled.text("-", 12, 21)
+                brightness = map_u16_value(potentiometer_value, 0, 1)
+                brightness_string = str(int(map_u16_value(potentiometer_value, 0, 100))) + "%"
             else:
-                oled.text("-",12, 43)            
+                oled.text("-",12, 43)
+                speed = map_u16_value(potentiometer_value, 1, 20)
+                speed_string = str(int(map_u16_value(potentiometer_value, 0, 100))) + "%"
         
-            oled.text("brightness:",21,21)
-            oled.text(str(brightness),21,32)
-            oled.text("speed:",21,43)
-            oled.text(str(speed),21,53)
-            oled.show()
+            oled.text("brightness:", 21, 21)
+            oled.text(brightness_string, 21, 32)
+            oled.text("speed:", 21, 43)
+            oled.text(speed_string, 21, 53)
+
+        oled.show()
+        ws.pixels_show()
+        previous_button_state = push_button.value()
+
+
+def ldr_dependented_Brightness():
+    previous_button_state = 0
+    current_button_state = 0
+    has_long_press_in_progres = False
+    time_when_we_printed_long_press = 0
+    is_routine_enabled = False
+    has_long_press_happened = False
+    time_when_led_was_turned_on = 0
+    manage_state = "tempreture"
+    v = str(0)
+    b = str(0)
+    color_index = 0
+    speed = 0
+    previous_time_led_was_changed = 0
+    brightness = 0
+    
+    
+
+
+
+    while True:
+        utime.sleep(0.2)
+
+        if (utime.ticks_ms() - time_when_led_was_turned_on) > 100:
+                led.value(0)
+
+        current_button_state = push_button.value()
+        if current_button_state == 1 and previous_button_state == 0:
+                
+            has_long_press_in_progres = True
+                
+            
+            time_when_we_printed_long_press = utime.ticks_ms()
+
+        if has_long_press_in_progres and current_button_state == 1 and previous_button_state == 1 and (utime.ticks_ms() - time_when_we_printed_long_press) >= 1000:
+            has_long_press_in_progres = False
+                
+            led.value(1)
+            time_when_led_was_turned_on = utime.ticks_ms()
+            print("long press")
+            has_long_press_happened = True
+            is_routine_enabled = not is_routine_enabled
+
+        
+
+
+        if current_button_state == 0 and previous_button_state == 1:
+            if has_long_press_happened == False:
+                print("click")
+                time_when_led_was_turned_on = utime.ticks_ms()
+                led.value(1)
+                if manage_state == "tempreture":
+                    manage_state = "led"
+
+                else:
+                    manage_state = "tempreture"
+
+            has_long_press_happened = False
+
+        oled.fill(0)
+        if is_routine_enabled == True:
+            speed = map_u16_value(pot.read_u16(),1,20)  
+            brightness =  map_u16_value(ldr.read_u16(),0,1)
+              
+            color_index += speed
+            
+            if color_index >= 360:
+                color_index = 1
+
+            ws.pixels_fill_hsv((color_index, 100, 100))
+            ws.brightness = brightness
+            ws.pixels_show()        
+
+            if manage_state == "tempreture":
+                temperature = shtc_sensor.temperature()
+                humidity = shtc_sensor.humidity()
+                oled.text("temreture:",15,10)
+                oled.text(str(int(temperature)),55,25)
+                oled.text("humidity:",30,40)
+                oled.text(str(int(humidity)),55,55)
+                oled.show()
+                
+
+            else:
+                v = str(int(map_u16_value(pot.read_u16(),0,100)))
+                b = str(int(map_u16_value(ldr.read_u16(),0,100)))
+                print("has_long_press_happened",has_long_press_happened,"manage_state",manage_state,"brightness",brightness)
+                oled.text("speed:",30,10)
+                oled.text(v + "%",30,25)
+                oled.text("brightness:",30,40)
+                oled.text(b + "%",30,55)
+                oled.show()
 
         else:
+            oled.fill(0)
             oled.show()
             ws.pixels_fill((0,0,0))
             ws.pixels_show()
-
-        
-            
-
-                 
-
-                
-                    
-
-
-
         # print("manage_state",manage_state)
         previous_button_state = push_button.value()
-
 
 
 
@@ -223,4 +321,5 @@ def manage_rgb_led_speed_and_brightness():
 #adjust_blinck_speed_and_display_the_speed()
 # adjust_blinck_speed_and_display_the_speed_and_enable_by_button()
 manage_rgb_led_speed_and_brightness() 
+#ldr_dependented_Brightness()
 
