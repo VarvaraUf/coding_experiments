@@ -213,69 +213,60 @@ def manage_rgb_led_speed_and_brightness():
         previous_button_state = push_button.value()
 
 
-def ldr_dependented_Brightness():
+def ldr_dependented_brightness():
     previous_button_state = 0
     current_button_state = 0
-    has_long_press_in_progres = False
-    time_when_we_printed_long_press = 0
+    is_long_press_in_progres = False
+    long_press_start_time = 0
     is_routine_enabled = False
-    has_long_press_happened = False
-    time_when_led_was_turned_on = 0
-    manage_state = "tempreture"
-    v = str(0)
-    b = str(0)
+    is_long_press_happened = False
+    signal_led_turn_on_time = 0
+    manage_state = "temperature"
+    speed_string = str(0)
+    brightness_string = str(0)
     color_index = 0
     speed = 0
-    previous_time_led_was_changed = 0
-    brightness = 0
-    
-    
-
-
+    brightness = 0.1
 
     while True:
         utime.sleep(0.2)
 
-        if (utime.ticks_ms() - time_when_led_was_turned_on) > 100:
-                led.value(0)
+        if (utime.ticks_ms() - signal_led_turn_on_time) > 100:
+            led.value(0)
 
         current_button_state = push_button.value()
         if current_button_state == 1 and previous_button_state == 0:
-                
-            has_long_press_in_progres = True
-                
-            
-            time_when_we_printed_long_press = utime.ticks_ms()
+            is_long_press_in_progres = True
+            long_press_start_time = utime.ticks_ms()
 
-        if has_long_press_in_progres and current_button_state == 1 and previous_button_state == 1 and (utime.ticks_ms() - time_when_we_printed_long_press) >= 1000:
-            has_long_press_in_progres = False
+        if is_long_press_in_progres and current_button_state == 1 and previous_button_state == 1 and (utime.ticks_ms() - long_press_start_time) >= 1000:
+            is_long_press_in_progres = False
                 
             led.value(1)
-            time_when_led_was_turned_on = utime.ticks_ms()
+            signal_led_turn_on_time = utime.ticks_ms()
             print("long press")
-            has_long_press_happened = True
+            is_long_press_happened = True
             is_routine_enabled = not is_routine_enabled
 
-        
-
-
         if current_button_state == 0 and previous_button_state == 1:
-            if has_long_press_happened == False:
+            if is_long_press_happened == False:
                 print("click")
-                time_when_led_was_turned_on = utime.ticks_ms()
+                signal_led_turn_on_time = utime.ticks_ms()
                 led.value(1)
-                if manage_state == "tempreture":
+                if manage_state == "temperature":
                     manage_state = "led"
-
                 else:
-                    manage_state = "tempreture"
+                    manage_state = "temperature"
 
-            has_long_press_happened = False
+            is_long_press_happened = False
 
         oled.fill(0)
+        ws.pixels_fill((0,0,0))
         if is_routine_enabled == True:
-            speed = map_u16_value(pot.read_u16(),1,20)  
-            brightness =  map_u16_value(ldr.read_u16(),0,1)
+            potentiometer_value = pot.read_u16()
+            light_sensor_value = ldr.read_u16()
+            speed = map_u16_value(potentiometer_value, 1, 20)  
+            brightness = map_u16_value(light_sensor_value, 0, 1)
               
             color_index += speed
             
@@ -286,31 +277,24 @@ def ldr_dependented_Brightness():
             ws.brightness = brightness
             ws.pixels_show()        
 
-            if manage_state == "tempreture":
+            if manage_state == "temperature":
                 temperature = shtc_sensor.temperature()
                 humidity = shtc_sensor.humidity()
-                oled.text("temreture:",15,10)
-                oled.text(str(int(temperature)),55,25)
-                oled.text("humidity:",30,40)
-                oled.text(str(int(humidity)),55,55)
-                oled.show()
-                
-
+                oled.text("temreture:", 15, 10)
+                oled.text(str(int(temperature)), 55, 25)
+                oled.text("humidity:", 30, 40)
+                oled.text(str(int(humidity)), 55, 55)
             else:
-                v = str(int(map_u16_value(pot.read_u16(),0,100)))
-                b = str(int(map_u16_value(ldr.read_u16(),0,100)))
-                print("has_long_press_happened",has_long_press_happened,"manage_state",manage_state,"brightness",brightness)
-                oled.text("speed:",30,10)
-                oled.text(v + "%",30,25)
-                oled.text("brightness:",30,40)
-                oled.text(b + "%",30,55)
-                oled.show()
+                speed_string = str(int(map_u16_value(potentiometer_value, 0, 100)))
+                brightness_string = str(int(map_u16_value(light_sensor_value, 0, 100)))
+                #print("has_long_press_happened",is_long_press_happened,"manage_state",manage_state,"brightness",brightness)
+                oled.text("speed:", 30, 10)
+                oled.text(speed_string + "%", 30, 25)
+                oled.text("brightness:", 30, 40)
+                oled.text(brightness_string + "%", 30, 55)
 
-        else:
-            oled.fill(0)
-            oled.show()
-            ws.pixels_fill((0,0,0))
-            ws.pixels_show()
+        oled.show()        
+        ws.pixels_show()
         # print("manage_state",manage_state)
         previous_button_state = push_button.value()
 
@@ -321,5 +305,5 @@ def ldr_dependented_Brightness():
 #adjust_blinck_speed_and_display_the_speed()
 # adjust_blinck_speed_and_display_the_speed_and_enable_by_button()
 manage_rgb_led_speed_and_brightness() 
-#ldr_dependented_Brightness()
+#ldr_dependented_brightness()
 
