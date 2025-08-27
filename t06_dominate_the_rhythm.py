@@ -29,6 +29,21 @@ melody = [("A3", 1), ("E4", 0.5), ("E4",0.5), ("E4",0.5),("E4",0.5), ("E4",0.5),
 # for note, time in melody:
 #     print('note = ', note, "time = ", time)
 
+def map_range_value(value, min, max, min_new, max_new):
+    size = max - min
+    #print("size",size)
+    #print("value",value)
+    position = (value - min) / size
+    #print(utime.ticks_ms(),"position",position)
+    size_new = max_new - min_new
+    #print(utime.ticks_ms(),"size_new",size_new)
+    v_new = (size_new * position) + min_new
+    #print(utime.ticks_ms(),"v_new",v_new)
+    return v_new
+
+def map_u16_value(v, min, max):
+    return map_range_value(v, 0, 65535, min, max)
+
 def playtone(frequency):
     buzzer.duty_u16(6000)
     buzzer.freq(frequency)
@@ -56,9 +71,9 @@ def play_the_song():
             rhythm_speed=((pot.read_u16()/65535.0)*20) + 1 # range from 1 to 20
             if (current_time - note_play_start_time)/1000.0 >= melody[note_count][1]/rhythm_speed:
                 note_play_start_time = utime.ticks_ms()
-            # print("note_count = ", note_count
-            #       , "mysong[note_count] = ", mysong[note_count]
-            #       , "tones[mysong[note_count]]", tones[mysong[note_count]])
+                # print("note_count = ", note_count
+                #       , "mysong[note_count] = ", mysong[note_count]
+                #       , "tones[mysong[note_count]]", tones[mysong[note_count]])
                 playtone(tones[melody[note_count][0]])
                 note_count += 1
                 if note_count == len(melody):
@@ -66,8 +81,50 @@ def play_the_song():
 
         if is_routine_enabled == False:
             buzzer.duty_u16(0)
+
+def detect_button_events():
+    LONG_PRESS_TIME = 1000
+    events = []
+    def record_button_event(pin: Pin):
+        events.append({"state": pin.value(), "time": utime.ticks_ms()})
+    
+    button.irq(trigger=Pin.IRQ_RISING | Pin.IRQ_FALLING, handler=record_button_event)
+    # 0        {'state': 1, 'time': 13216968} m 
+    # 1        {'state': 1, 'time': 13216968}
+    # 2        {'state': 1, 'time': 13216981}
+    # 3        {'state': 0, 'time': 13217160} m
+    # 4        {'state': 0, 'time': 13217165} +
+    while True:
+        utime.sleep_ms(500)
+        print("events")
+        for index, event in enumerate(events):
+            print(index, '\t', event)
+        
+        if len(events) > 0:
+            merged_events = []
+            for event in events:
+                if len(merged_events) > 0 and merged_events[-1]['state'] == event['state']:
+                    continue
+                
+                merged_events.append(event)
             
-play_the_song()
-        
-        
+            print("merged_events")
+            for index, event in enumerate(merged_events):
+                print(index, '\t', event)
+
+            event = merged_events[-1]
+            # long press
+            if event["state"] == 1 and (utime.ticks_ms() - event["time"]) >= LONG_PRESS_TIME:
+                print("long press")
+                events = []
+            # click
+            elif event["state"] == 0 and len(merged_events) >= 2:
+                previous_event = merged_events[-2]
+                if previous_event["state"] == 1:
+                    print("click")                    
+                    events = []            
+
+            
+# play_the_song()
+detect_button_events()
         
