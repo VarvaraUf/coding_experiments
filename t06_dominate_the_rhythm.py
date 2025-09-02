@@ -18,10 +18,12 @@ tones = {
     "A3": 220,
     "D4": 294,
     "E4": 330,
-    "F4": 349
+    "F4": 349,
+    "beep": 200
 }
 
 melody = [("A3", 1), ("E4", 0.5), ("E4",0.5), ("E4",0.5),("E4",0.5), ("E4",0.5), ("E4",0.5), ("F4",0.5), ("E4",0.5), ("D4",0.5), ("F4",0.5), ("E4",1)]
+beep_melody = [("M8", 5.0)]
 # for item in melod0y:
 #     note = item[0]
 #     time = item[1]
@@ -44,16 +46,16 @@ def map_range_value(value, min, max, min_new, max_new):
 def map_u16_value(v, min, max):
     return map_range_value(v, 0, 65535, min, max)
 
-def playtone(frequency):
-    buzzer.duty_u16(6000)
-    buzzer.freq(frequency)
-
-def enable_buzzer(pin):
-    global is_routine_enabled
-    is_routine_enabled = not is_routine_enabled
-
 def play_the_song():
-    global button_clicked
+
+    def playtone(frequency):
+        buzzer.duty_u16(6000)
+        buzzer.freq(frequency)
+    
+    def enable_buzzer(pin):
+        global is_routine_enabled
+        is_routine_enabled = not is_routine_enabled
+    
     button.irq(trigger=Pin.IRQ_RISING, handler=enable_buzzer)
 
     note_count = 0
@@ -85,6 +87,7 @@ def play_the_song():
 def detect_button_events():
     LONG_PRESS_TIME = 1000
     events = []
+    
     def record_button_event(pin: Pin):
         events.append({"state": pin.value(), "time": utime.ticks_ms()})
     
@@ -94,6 +97,45 @@ def detect_button_events():
     # 2        {'state': 1, 'time': 13216981}
     # 3        {'state': 0, 'time': 13217160} m
     # 4        {'state': 0, 'time': 13217165} +
+    while True:
+        utime.sleep_ms(500)
+        
+        # print("events")
+        # for index, event in enumerate(events):
+        #     print(index, '\t', event)
+        
+        if len(events) > 0:
+            merged_events = []
+            for event in events:
+                if len(merged_events) > 0 and merged_events[-1]['state'] == event['state']:
+                    continue
+                
+                merged_events.append(event)
+            
+            # print("merged_events")
+            # for index, event in enumerate(merged_events):
+            #     print(index, '\t', event)
+
+            event = merged_events[-1]
+            # long press
+            if event["state"] == 1 and (utime.ticks_ms() - event["time"]) >= LONG_PRESS_TIME:
+                print("long press")
+                events = []
+            # click
+            elif event["state"] == 0 and len(merged_events) >= 2:
+                previous_event = merged_events[-2]
+                if previous_event["state"] == 1:
+                    print("click")                                   
+                    events = []    
+                 
+def beep_on_button_event():
+    LONG_PRESS_TIME = 1000
+    events = []
+    def record_button_event(pin: Pin):
+        events.append({"state": pin.value(), "time": utime.ticks_ms()})
+    
+    button.irq(trigger=Pin.IRQ_RISING | Pin.IRQ_FALLING, handler=record_button_event)
+
     while True:
         utime.sleep_ms(500)
         print("events")
@@ -121,10 +163,69 @@ def detect_button_events():
             elif event["state"] == 0 and len(merged_events) >= 2:
                 previous_event = merged_events[-2]
                 if previous_event["state"] == 1:
-                    print("click")                    
-                    events = []            
+                    print("click")                
+                    events = []
+
+def control_buzzer():
+    LONG_PRESS_TIME = 1000
+    events = []
+    is_routine_enabled = False
+    
+    def record_button_event(pin: Pin):
+        events.append({"state": pin.value(), "time": utime.ticks_ms()})
+    
+    button.irq(trigger=Pin.IRQ_RISING | Pin.IRQ_FALLING, handler=record_button_event)
+    # 0        {'state': 1, 'time': 13216968} m 
+    # 1        {'state': 1, 'time': 13216968}
+    # 2        {'state': 1, 'time': 13216981}
+    # 3        {'state': 0, 'time': 13217160} m
+    # 4        {'state': 0, 'time': 13217165} +
+    while True:
+        # utime.sleep_ms(500)
+        frequency = map_u16_value(pot.read_u16(),200,4000)
+
+        if is_routine_enabled == True:
+                playtone(int(frequency))
+        
+        # print("events")
+        oled.fill(0)
+        oled.text("frequency", 30, 10)
+        oled.text(str(int(frequency)), 45, 25)
+        oled.show()
+        for index, event in enumerate(events):
+            print(index, '\t', event)
+        
+        if len(events) > 0:
+            merged_events = []
+            for event in events:
+                if len(merged_events) > 0 and merged_events[-1]['state'] == event['state']:
+                    continue
+                
+                merged_events.append(event)
+            
+            # print("merged_events")
+            for index, event in enumerate(merged_events):
+                print(index, '\t', event)
+
+            event = merged_events[-1]
+            # long press
+            if event["state"] == 1 and (utime.ticks_ms() - event["time"]) >= LONG_PRESS_TIME:
+                print("long press")
+                play_the_beep_song()
+                events = []
+            # click
+            elif event["state"] == 0 and len(merged_events) >= 2:
+                previous_event = merged_events[-2]
+                if previous_event["state"] == 1:
+                    print("click") 
+                    play_the_beep_song()
+                    is_routine_enabled = not is_routine_enabled
+                                   
+                    events = []  
+             
 
             
+            
 # play_the_song()
-detect_button_events()
-        
+beep_on_button_event()
+# detect_button_events()
