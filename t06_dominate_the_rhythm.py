@@ -131,8 +131,9 @@ def detect_button_events():
 def beep_on_button_event():
     LONG_PRESS_TIME = 1000
     events = []
-    time = 0
+    beep_duration = 0
     time_when_click_happened = 0
+    
     def record_button_event(pin: Pin):
         events.append({"state": pin.value(), "time": utime.ticks_ms()})
     
@@ -140,9 +141,6 @@ def beep_on_button_event():
 
     while True:
         utime.sleep_ms(100)
-        # print("events")
-        # for index, event in enumerate(events):
-        #     print(index, '\t', event)
         
         if len(events) > 0:
             merged_events = []
@@ -151,10 +149,6 @@ def beep_on_button_event():
                     continue
                 
                 merged_events.append(event)
-            
-            # print("merged_events")
-            # for index, event in enumerate(merged_events):
-            #     print(index, '\t', event)
 
             event = merged_events[-1]
             # long press
@@ -162,31 +156,25 @@ def beep_on_button_event():
                 print("long press")
                 events = []
                 time_when_click_happened = utime.ticks_ms()
-                time = 200
+                beep_duration = 200
             # click
             elif event["state"] == 0 and len(merged_events) >= 2:
                 previous_event = merged_events[-2]
                 if previous_event["state"] == 1:
                     print("click") 
-                    time = 100 
+                    beep_duration = 100 
                     time_when_click_happened = utime.ticks_ms()
                     events = []
                     
         # print("utime.ticks_ms()",utime.ticks_ms(),"time_when_click_happened",time_when_click_happened,"time pased",utime.ticks_ms() - time_when_click_happened)
-        if (utime.ticks_ms() - time_when_click_happened) < time:
+        if (utime.ticks_ms() - time_when_click_happened) < beep_duration:
             buzzer.duty_u16(6000)
             buzzer.freq(349)
             # print("turn buzzer on time pased",utime.ticks_ms() - time_when_click_happened)
         else:
             # print("turn buzzer off time pased",utime.ticks_ms() - time_when_click_happened)
             buzzer.duty_u16(0)
-            # buzzer.duty_u16(6000)
-            # buzzer.freq(349)
                
-
-                               
-                    
-
 def control_buzzer():
     LONG_PRESS_TIME = 1000
     events = []
