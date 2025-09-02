@@ -177,6 +177,8 @@ def beep_on_button_event():
                
 def control_buzzer():
     LONG_PRESS_TIME = 1000
+    BUZZER_LOW_FREQUENCY = 200
+    BUZZER_HIGH_FREQUENCY = 4000
     events = []
     is_routine_enabled = False
     
@@ -184,25 +186,19 @@ def control_buzzer():
         events.append({"state": pin.value(), "time": utime.ticks_ms()})
     
     button.irq(trigger=Pin.IRQ_RISING | Pin.IRQ_FALLING, handler=record_button_event)
-    # 0        {'state': 1, 'time': 13216968} m 
-    # 1        {'state': 1, 'time': 13216968}
-    # 2        {'state': 1, 'time': 13216981}
-    # 3        {'state': 0, 'time': 13217160} m
-    # 4        {'state': 0, 'time': 13217165} +
     while True:
         # utime.sleep_ms(500)
-        frequency = map_u16_value(pot.read_u16(),200,4000)
+        frequency = int(map_u16_value(pot.read_u16(), BUZZER_LOW_FREQUENCY, BUZZER_HIGH_FREQUENCY))
 
-        if is_routine_enabled == True:
-                playtone(int(frequency))
-        
-        # print("events")
         oled.fill(0)
-        oled.text("frequency", 30, 10)
-        oled.text(str(int(frequency)), 45, 25)
+        if is_routine_enabled:
+            buzzer.duty_u16(6000)
+            buzzer.freq(frequency)
+            oled.text("frequency", 30, 10)
+            oled.text(str(frequency), 45, 25)
+        else:
+            buzzer.duty_u16(0)
         oled.show()
-        for index, event in enumerate(events):
-            print(index, '\t', event)
         
         if len(events) > 0:
             merged_events = []
@@ -211,30 +207,15 @@ def control_buzzer():
                     continue
                 
                 merged_events.append(event)
-            
-            # print("merged_events")
-            for index, event in enumerate(merged_events):
-                print(index, '\t', event)
 
             event = merged_events[-1]
             # long press
             if event["state"] == 1 and (utime.ticks_ms() - event["time"]) >= LONG_PRESS_TIME:
                 print("long press")
-                play_the_beep_song()
-                events = []
-            # click
-            elif event["state"] == 0 and len(merged_events) >= 2:
-                previous_event = merged_events[-2]
-                if previous_event["state"] == 1:
-                    print("click") 
-                    play_the_beep_song()
-                    is_routine_enabled = not is_routine_enabled
-                                   
-                    events = []  
-             
-
-            
+                is_routine_enabled = not is_routine_enabled
+                events = []            
             
 # play_the_song()
-beep_on_button_event()
+# beep_on_button_event()
 # detect_button_events()
+control_buzzer()
