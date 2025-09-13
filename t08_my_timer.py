@@ -14,6 +14,21 @@ potentiometer = ADC(Pin(26))
 button = Pin(10, Pin.IN, Pin.PULL_DOWN)
 ws = WS2812(brightness=0.1)
 
+def map_range_value(value, min, max, min_new, max_new):
+    size = max - min
+    #print("size",size)
+    #print("value",value)
+    position = (value - min) / size
+    #print(utime.ticks_ms(),"position",position)
+    size_new = max_new - min_new
+    #print(utime.ticks_ms(),"size_new",size_new)
+    v_new = (size_new * position) + min_new
+    #print(utime.ticks_ms(),"v_new",v_new)
+    return v_new
+
+def map_u16_value(v, min, max):
+    return map_range_value(v, 0, 65535, min, max)
+
 
 seconds=59
 milliseconds=999
@@ -78,15 +93,6 @@ def my_timer():
     oled.text(str(milliseconds),60,30)
     oled.text("Time is Over!",10,48)
     oled.show()
-
-def my_timer_count_milliseconds():
-    milliseconds_counter = 61234
-    milliseconds_clock = 0
-
-    minutes_clock = 0
-    seconds_clock = 0
-    
-    print(f'{minutes_clock}:{seconds_clock}.{milliseconds_clock}')
 
 def my_timer_set(number,secound,color):
     global seconds
@@ -222,7 +228,46 @@ def millisecounds_to_clock(millisecounds):
 
     return pad_zeroes(minutes,2) + ":" + pad_zeroes(seconds_ramainder,2) + "." + pad_zeroes(milliseconds_ramainder,3) + "ms"#"1m1s"
 
+
+milliseconds=0
+def my_timer_count_milliseconds():
+    global milliseconds
+            
+    def update_millisecond(timer):
+        global milliseconds
+        milliseconds -= 9
+       
+    while button.value()==0:
+        oled.fill(0)
+        milliseconds=int(map_u16_value(potentiometer.read_u16(),0,3_600_000))
+        
+        oled.text("Set timer: ", 10, 12)
+        oled.text(millisecounds_to_clock(milliseconds) + " min",10,24)
+        oled.show()
+        
+    time3=Timer(mode=Timer.PERIODIC, period=9, callback=update_millisecond)
+
+    utime.sleep(0.3)
+
+    while button.value()==0:
+        oled.fill(0)
+        
+        oled.text(millisecounds_to_clock(milliseconds),10,20)
+                
+        oled.show()
+        utime.sleep(0.01)
+        if(milliseconds < 0):
+            milliseconds=0
+            break
+
+    time3.deinit()
+    oled.fill(0)
+    oled.text(millisecounds_to_clock(milliseconds),10,30)
+    oled.text("Time is Over!",10,48)
+    oled.show()
+    
 # my_timer_set(100,100,8)
 # my_timer_count_milliseconds()
 # my_timer()
-print(millisecounds_to_clock(3600000))
+# print(millisecounds_to_clock(3600000))
+my_timer_count_milliseconds()
