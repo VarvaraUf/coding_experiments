@@ -155,7 +155,74 @@ def my_timer_set(number,secound,color):
     oled.show()
     
 
+def get_remander(a,b):
+    c = a//b
+    e = c*b
+    return a - e
+
+def secounds_to_time(seconds):
+    minutes = seconds//60
+    e = minutes*60
+    ramainder_seconds = seconds - e
+    return str(minutes) + "m" + str(ramainder_seconds) + "s"#"1m1s"
+    
+def seconds_to_hms(seconds):
+    minutes = seconds//60
+    e = minutes*60
+    ramainder_seconds = seconds - e
+    hours = minutes//60
+    e = hours*60
+    ramainder_minutes = minutes - e
+
+    return str(hours) + "h" + str(ramainder_minutes) + "m" + str(ramainder_seconds) + "s"#"1m1s"
+
+def millisecounds_to_hmsms(millisecounds):
+    secounds = millisecounds//1000
+    e = secounds*1000
+    ramainder_millisecounds = millisecounds - e
+
+    minutes = secounds//60
+    e = minutes*60
+    ramainder_seconds = secounds - e
+
+    hours = minutes//60
+    e = hours*60
+    ramainder_minutes = minutes - e
+    return str(hours) + "h " + str(ramainder_minutes) + "m " + str(ramainder_seconds) + "s " + str(ramainder_millisecounds) + "ms"#"1m1s"
+def pad_2(n):
+    if n < 10:
+        return "0" + str(n)
+    
+    return str(n)
+    
+def pad_3(w):
+    if w > 0:
+        if w < 10:
+            return "00" + str(w)
+        if w < 100:
+            return "0" + str(w)
+    return str(w)
+
+def pad_zeroes(n,l):
+    times = l - len(str(n))
+    zeroes = ""
+    for index in range(0,times):
+        zeroes += "0"
+        
+    return zeroes + str(n)
+
+def millisecounds_to_clock(millisecounds):
+    secounds = millisecounds//1000
+    e = secounds*1000
+    milliseconds_ramainder = millisecounds - e
+
+    minutes = secounds//60
+    e = minutes*60
+    seconds_ramainder = secounds - e    
+
+    return pad_zeroes(minutes,2) + ":" + pad_zeroes(seconds_ramainder,2) + "." + pad_zeroes(milliseconds_ramainder,3) + "ms"#"1m1s"
 
 # my_timer_set(100,100,8)
 # my_timer_count_milliseconds()
-my_timer()
+# my_timer()
+print(millisecounds_to_clock(3600000))
