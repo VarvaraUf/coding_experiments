@@ -74,85 +74,67 @@ def alarm_clock():
             
         utime.sleep(1.0)
 
-red = "red"
-yellow = "yellow"
-green = "green"
-color = red
-previous_color = green
-loops = 0
-is_routine_enabled = True
-changed_color_time = 0
-def red_light_green_light():
-    global previous_color
-    global color
-    global loops
-    global is_routine_enabled
-    global changed_color_time
+STATE_NIGHT = "NIGHT"
+STATE_ALARM = "ALARM"
+STATE_DAY = "DAY"
+state = STATE_NIGHT
+buzzer_state_change_time = 0
+is_buzzer_on = False
+def alarm_clock_state():
+    global state
+    global buzzer_state_change_time
+    global is_buzzer_on
 
-    led.value(0)
-
-    def change_to_yellow(pin):
-        global color
-        color = yellow
-        is_routine_enabled = False
-        changed_color_time = utime.ticks_ms()
-
-    def change_to_green(pin):
-        global color
-        color = green
-        is_routine_enabled = False
-        changed_color_time = utime.ticks_ms()
-        
-
-    def change_to_red(pin):
-        global color
-        color = red
-        is_routine_enabled = False
-        changed_color_time = utime.ticks_ms()
+    def on_click_change_state_to_day(pin):
+        global state
+        state = STATE_DAY
 
     while True:
-        if color == red and previous_color != red:
-            if is_routine_enabled == True:
-                neo.pixels_fill((255,0,0))
-                previous_color = red
-                loops += 1
-                led.value(1)
+        # print(utime.ticks_ms(),"state4",state)
+        if state == STATE_NIGHT:
+            if ldr.read_u16()>4000:
                 oled.fill(0)
-                oled.text(str(color) + str(loops),57,32)
-                #Print the minutes, seconds, milliseconds and "Have a nice day!" values ​​to the X and Y coordinates determined on the OLED screen.
+                oled.text("Good night",25,32)
                 oled.show()
-                neo.pixels_show() 
-                print("red")
-                button.irq(trigger=Pin.IRQ_RISING, handler=change_to_yellow)
-
-        if color == yellow and previous_color == red:
-            if is_routine_enabled == True:
-                neo.pixels_fill((255,255,0))
-                previous_color = yellow
-                oled.fill(0)
-                oled.text(str(color) + str(loops),57,32)
-                #Print the minutes, seconds, milliseconds and "Have a nice day!" values ​​to the X and Y coordinates determined on the OLED screen.
-                oled.show()
-                neo.pixels_show() 
-                print("yelow")
-                button.irq(trigger=Pin.IRQ_RISING, handler=change_to_green)
-               
-        if color == green and previous_color == yellow:
-            if is_routine_enabled == True:
-                neo.pixels_fill((0,255,0))
-                previous_color = green
-                oled.fill(0)
-                oled.text(str(color) + str(loops),57,32)
-                #Print the minutes, seconds, milliseconds and "Have a nice day!" values ​​to the X and Y coordinates determined on the OLED screen.
-                oled.show()
+                neo.pixels_fill(RED)
                 neo.pixels_show()
-                print("green")
-                button.irq(trigger=Pin.IRQ_RISING, handler=change_to_red)
-            
-        if (utime.ticks_ms() - changed_color_time) >= 500:
-            is_routine_enabled = True
+            else:
+                state = STATE_ALARM
+
+        if state == STATE_ALARM:
+            neo.pixels_fill((255,255,255))
+            neo.pixels_show()
+
+            oled.fill(0)
+            oled.text("Good morning",25,32)
+            oled.show()
+
+            if utime.ticks_ms() - buzzer_state_change_time >= (1000 if is_buzzer_on else 500):
+                is_buzzer_on = not is_buzzer_on
+                buzzer_state_change_time = utime.ticks_ms()
+                buzzer.duty_u16(6000 if is_buzzer_on else 0)
+
+            button.irq(trigger=Pin.IRQ_RISING, handler=on_click_change_state_to_day)
+
+        if state == STATE_DAY:
+            buzzer.duty_u16(0)
+            if ldr.read_u16()<4000:
+                oled.fill(0)
+                oled.text("Have a nice day!",0,32)
+                oled.show()
+                neo.pixels_fill((0,0,0))
+                neo.pixels_show()
+                print(utime.ticks_ms(),"state8",state)
+            else:
+                state = STATE_NIGHT
+
+
+
+
+
+    
 
    
 #wait for one second
 # alarm_clock()
-red_light_green_light()
+alarm_clock_state()
