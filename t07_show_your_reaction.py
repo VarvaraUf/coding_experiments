@@ -163,6 +163,102 @@ def show_your_reaction_score_state():
             if utime.ticks_ms() - score_display_start_time >= 2000:
                 state = STATE_START
 
+class ShowYourReactionGame:
+    led: Pin
+    oled: SSD1306_I2C
+    button: Pin
+
+    STATE_START = "start"
+    STATE_WAIT_LED = "wait_led"
+    STATE_WAIT_REACTION = "wait_reaction"
+    STATE_SCORE = "score"
+    state = STATE_START
+    best_score = 9999
+    sleep_ms = 0
+    random_sleep_start_time = 0
+    user_reaction_time = 0
+    reaction_timer_start_time = 0
+    score_display_start_time = 0
+    state_counter = -1
+    state_handlers = None
+
+    def __init__(self, led: Pin, oled: SSD1306_I2C, button: Pin) -> None:
+        self.oled = oled
+        self.led = led
+        self.button = button
+
+        self.state_handlers = {
+            self.STATE_START:self.run_STATE_START,
+            self.STATE_WAIT_LED:self.run_STATE_WAIT_LED,
+            self.STATE_WAIT_REACTION:self.run_STATE_WAIT_REACTION,
+            self.STATE_SCORE:self.run_STATE_SCORE
+        }
+
+    def set_state_to(self, what_state):
+        self.state = what_state
+        self.state_counter = -1
+
+    def on_click_set_state_to_state_wait_led(self, pin):
+        self.set_state_to(self.STATE_WAIT_LED)
+
+    def on_click_set_state_to_state_score(self, pin):
+        self.user_reaction_time = utime.ticks_ms() - self.reaction_timer_start_time
+        self.led.value(0)
+        self.set_state_to(self.STATE_SCORE)
+
+    def run_STATE_START(self):
+        if self.state_counter == 0:
+            self.led.value(0)
+            self.oled.fill(0)
+            self.oled.text("press the button",0,10)
+            self.oled.text("TO START!",25,25)
+            self.oled.show()
+            self.button.irq(trigger=Pin.IRQ_RISING, handler=self.on_click_set_state_to_state_wait_led) 
+
+    def run_STATE_WAIT_LED(self):
+        if self.state_counter == 0:
+            self.oled.fill(0)
+            self.oled.text("Wait For LED",15,30)
+            self.oled.show()
+            self.random_sleep_start_time = utime.ticks_ms()
+            self.sleep_ms = urandom.uniform(1,5)*1000
+                
+        if utime.ticks_ms() - self.random_sleep_start_time >= self.sleep_ms:
+            self.led.value(1)
+            self.reaction_timer_start_time = utime.ticks_ms()
+            self.set_state_to(self.STATE_WAIT_REACTION)
+
+    def run_STATE_WAIT_REACTION(self):
+        if self.state_counter == 0:
+            self.button.irq(trigger=Pin.IRQ_RISING, handler=self.on_click_set_state_to_state_score)
+
+    def run_STATE_SCORE(self):
+        if self.state_counter == 0:
+            if self.user_reaction_time < self.best_score:
+                self.best_score = self.user_reaction_time
+
+            self.led.value(0)
+            self.oled.fill(0)
+            self.oled.text("Your Time",25,25)
+            self.oled.text(str(self.user_reaction_time),26,35)
+            self.oled.text("best score",26,45)
+            self.oled.text(str(self.best_score),26,55)
+            self.oled.show()
+            self.score_display_start_time = utime.ticks_ms()            
+            
+        if utime.ticks_ms() - self.score_display_start_time >= 2000:
+            self.set_state_to(self.STATE_START)
+
+    def run(self) -> None:
+        while True:
+            utime.sleep(0.01)
+            self.state_counter += 1
+            handler = self.state_handlers[self.state] # type: ignore
+            handler()
+    
+
 # show_your_reaction()
 # show_your_reaction_score()
-show_your_reaction_score_state()
+# show_your_reaction_score_state()
+show_your_reaction_obgect = ShowYourReactionGame(led,oled,button)
+show_your_reaction_obgect.run()
