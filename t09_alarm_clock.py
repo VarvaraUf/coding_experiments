@@ -128,13 +128,93 @@ def alarm_clock_state():
             else:
                 state = STATE_NIGHT
 
+class AlarmClock:
+    oled: SSD1306_I2C
+    rgb_led: WS2812
+    ldr: ADC
+    buzzer: PWM
+    button: Pin
 
+    STATE_NIGHT = "NIGHT"
+    STATE_ALARM = "ALARM"
+    STATE_DAY = "DAY"
+    state = STATE_NIGHT
+    state_counter = -1
+    state_handlers = None
 
+    NIGHT_THRESHOLD = 4000
 
+    buzzer_state_change_time = 0
+    is_buzzer_on = False
 
-    
+    def __init__(self, oled: SSD1306_I2C, rgb_led: WS2812, ldr: ADC, buzzer: PWM, button: Pin) -> None:
+        self.oled = oled
+        self.rgb_led = rgb_led
+        self.ldr = ldr
+        self.buzzer = buzzer
+        self.button = button
 
-   
+        self.state_handlers = {
+            self.STATE_NIGHT: self.run_state_night,
+            self.STATE_ALARM: self.run_state_alarm,
+            self.STATE_DAY: self.run_state_day
+        }
+
+    def set_state(self, state):
+        self.state = state
+        self.state_counter = -1
+
+    def on_click_change_state_to_day(self, pin):
+        self.set_state(self.STATE_DAY)
+
+    def run_state_night(self, state_counter) -> None:
+        if state_counter == 0:
+            self.oled.fill(0)
+            self.oled.text("Good night",25,32)
+            self.oled.show()
+            self.rgb_led.pixels_fill(RED)
+            self.rgb_led.pixels_show()
+
+        if self.ldr.read_u16() < self.NIGHT_THRESHOLD:
+            self.set_state(self.STATE_ALARM)
+
+    def run_state_alarm(self, state_counter):
+        if state_counter == 0:
+            neo.pixels_fill((255,255,255))
+            neo.pixels_show()
+
+            oled.fill(0)
+            oled.text("Good morning",25,32)
+            oled.show()
+
+            self.button.irq(trigger=Pin.IRQ_RISING, handler=self.on_click_change_state_to_day)
+            
+        if utime.ticks_ms() - self.buzzer_state_change_time >= (1000 if self.is_buzzer_on else 500):
+            self.is_buzzer_on = not self.is_buzzer_on
+            self.buzzer_state_change_time = utime.ticks_ms()
+            self.buzzer.duty_u16(6000 if self.is_buzzer_on else 0)
+
+    def run_state_day(self, state_counter):
+        if state_counter == 0:
+            buzzer.duty_u16(0)        
+            oled.fill(0)
+            oled.text("Have a nice day!",0,32)
+            oled.show()
+            neo.pixels_fill((0,0,0))
+            neo.pixels_show()
+        
+        if ldr.read_u16() > self.NIGHT_THRESHOLD:
+            self.set_state(self.STATE_NIGHT)
+
+    def run(self) -> None:
+        while True:
+            utime.sleep(0.01)
+            self.state_counter += 1
+            handler = self.state_handlers[self.state] # type: ignore
+            handler(self.state_counter)
+
 #wait for one second
 # alarm_clock()
-alarm_clock_state()
+# alarm_clock_state()
+alarm_clock_object = AlarmClock(oled, neo, ldr, buzzer, button)
+alarm_clock_object.run()
