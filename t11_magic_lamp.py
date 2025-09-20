@@ -1,5 +1,6 @@
 from machine import Pin
 import utime
+
 def magic_lamp():
     sensor=Pin(9,Pin.IN)
     led=Pin(7,Pin.OUT)
@@ -33,4 +34,32 @@ def magic_lamp_rrq():
     while True:
         pass
 
-magic_lamp_rrq()
+
+
+class MagicLamp:
+    last_clap_time = 0
+
+    def __init__(self):
+        self.sound_sensor = Pin(9,Pin.IN)
+        self.led = Pin(7,Pin.OUT)
+        
+        self.led.value(0)
+
+    def on_clap(self, pin):        
+        if (utime.ticks_ms() - self.last_clap_time) <= 200:
+            print(utime.ticks_ms(), 'on_clap skip', pin.value())
+            return
+        print(utime.ticks_ms(), 'on_clap toggle', pin.value())
+        self.led.value(not self.led.value())
+        self.last_clap_time = utime.ticks_ms()
+        
+        
+    def run(self):
+        self.sound_sensor.irq(trigger=Pin.IRQ_RISING, handler=self.on_clap)
+        while True:
+            pass
+
+# magic_lamp()
+# magic_lamp_rrq()
+magic_lamp_object = MagicLamp()
+magic_lamp_object.run()
