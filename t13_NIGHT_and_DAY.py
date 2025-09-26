@@ -17,11 +17,7 @@ def NIGHT_and_DAY():
     ldr=ADC(Pin(27))
     button=Pin(10,Pin.IN,Pin.PULL_DOWN)
     #define the input and output pins
-    oled.text("NIGHT and DAY", 10, 0)
-    oled.text("<GAME>", 40, 20)
-    oled.text("Press the Button", 0, 40)
-    oled.text("to START!", 40, 55)
-    oled.show()
+    
     #OLED Screen Texts Settings
 
     def changeWord():
@@ -82,10 +78,8 @@ def NIGHT_and_DAY():
             #when score is 10, OLED says 'You Won'
             oled.fill(0)
             oled.show()
-            oled.text("Congratulation", 10, 10)
+            oled.text("Congratulations", 10, 10)
             oled.text("Top Score: 100", 5, 35)
-            oled.text("Press Reset", 20, 45)
-            oled.text("To REPEAT", 25,55)
             oled.show()
             buzzer.duty_u16(2000)
             utime.sleep(0.1)
@@ -109,6 +103,9 @@ class night_and_day:
     state = STATE_START
     state_handlers = None
     state_counter = -1
+    is_routine_enabled = True
+    score = 0
+    
     
 
     #OLED Screen Settings
@@ -119,7 +116,6 @@ class night_and_day:
         self.i2c=I2C(0,sda=sda, scl=scl)
         self.oled = SSD1306_I2C(self.WIDTH, self.HEIGHT, self.i2c)
         self.buzzer = PWM(Pin(20))
-        
         self.ldr=ADC(Pin(27))
         self.button=Pin(10,Pin.IN,Pin.PULL_DOWN)
 
@@ -127,13 +123,13 @@ class night_and_day:
         self.state_handlers = {
             self.STATE_START: self.RUN_STATE_START,
             self.STATE_GO: self.run_state_GO,
-            
         }
 
         #define the input and output pins
         self.buzzer.freq(440)
     def RUN_STATE_START(self):
         if self.state_counter == 0:
+            self.oled.fill(0)
             self.oled.text("NIGHT and DAY", 10, 0)
             self.oled.text("<GAME>", 40, 20)
             self.oled.text("Press the Button", 0, 40)
@@ -141,12 +137,114 @@ class night_and_day:
             self.oled.show()
 
         if self.button.value() == 1:
-            if self.state_counter == 0:
-                self.state = self.STATE_GO
+            self.state = self.STATE_GO
+            self.state_counter = -1
+            self.oled.fill(0)
+            self.oled.show()
+
+
+    def changeWord(self):
+            global NIGHT_OR_DAY
+            NIGHT_OR_DAY=round(urandom.uniform(0,1))
+            
+            if NIGHT_OR_DAY==0:
+                self.oled.fill(0)
+                self.oled.text("---NIGHT---", 20, 30)
+                self.oled.show()
+            else:
+                self.oled.fill(0)
+                self.oled.text("---DAY---", 20, 30)
+                self.oled.show()
+
 
 
     def run_state_GO(self):
-        pass
+        self.score = 0
+        start = 1
+        if self.state_counter == 0:
+            while start == 1:
+                global gamerReaction
+                
+                self.changeWord()
+                startTime=utime.ticks_ms()
+                #when LDR's data greater than 2000, gamer reaction '0'
+                while utime.ticks_diff(utime.ticks_ms(), startTime)<=2000:
+                    if self.ldr.read_u16()>20000:
+                        gamerReaction=0
+                    #when LDR's data lower than 2000, gamer reaction '1'
+                    else:
+                        gamerReaction=1
+                    utime.sleep(0.01)
+                #buzzer working
+                self.buzzer.duty_u16(2000)
+                utime.sleep(0.05)
+                self.buzzer.duty_u16(0)
+                if gamerReaction==NIGHT_OR_DAY:
+                    self.score += 10
+
+                else:
+                    self.score -= 10
+                    self.is_routine_enabled = True
+                    start = 0
+                    
+                if self.score == 100:
+                    self.oled.fill(0)
+                    self.oled.show()
+                    self.oled.text("Congratulations", 10, 10)
+                    self.oled.text("Top Score: 100", 5, 35)
+                    self.oled.show()
+                    self.buzzer.duty_u16(2000)
+                    utime.sleep(0.1)
+                    self.buzzer.duty_u16(0)
+                    utime.sleep(0.1)
+                    self.buzzer.duty_u16(2000)
+                    utime.sleep(0.1)
+                    self.buzzer.duty_u16(0)
+                    start = 0
+                    self.is_routine_enabled = False
+            if self.is_routine_enabled == True:
+                self.oled.fill(0)
+                self.oled.show()
+                self.oled.text("Game Over", 0, 18, 1)
+                self.oled.text("Your score " + str(self.score), 0,31)
+                self.oled.text("Press The button",0, 45)
+                self.oled.text("To REPEAT",0,55)
+                self.oled.show()
+                self.buzzer.duty_u16(2000)
+                utime.sleep(0.05)
+                self.buzzer.duty_u16(0)
+                utime.sleep(0.1)
+                self.buzzer.duty_u16(2000)
+                utime.sleep(0.1)
+                self.buzzer.duty_u16(0)
+
+        if self.button.value() == 1:
+            self.state = self.STATE_START
+            self.state_counter = -1
+            self.oled.fill(0)
+            self.oled.show()
+            utime.sleep(0.3)
 
 
-NIGHT_and_DAY()
+
+
+
+
+
+    
+    def run(self) -> None:
+        while True:
+            utime.sleep(0.01)
+            self.state_counter += 1
+            self.handler = self.state_handlers[self.state] # type: ignore
+            self.handler()
+
+
+
+        
+
+
+
+night_and_day_object = night_and_day()
+night_and_day_object.run()
+# NIGHT_and_DAY()
