@@ -90,11 +90,11 @@ def NIGHT_and_DAY():
             buzzer.duty_u16(0)
             break
 
-class night_and_day:
+class NightAndDay:
     WIDTH = 128
     HEIGHT = 64
     oled: SSD1306_I2C
-    i2c:I2C
+    i2c: I2C
     ldr: ADC
     buzzer: PWM
     button: Pin
@@ -104,30 +104,26 @@ class night_and_day:
     state_handlers = None
     state_counter = -1
     is_routine_enabled = True
-    score = 0
-    
-    
+    score = 0    
 
     #OLED Screen Settings
     def __init__(self):
-        sda=Pin(4)
-        scl=Pin(5)
-        #initialize digital pin 4 and 5 as an OUTPUT for OLED Communication
-        self.i2c=I2C(0,sda=sda, scl=scl)
+        sda = Pin(4)
+        scl = Pin(5)
+        self.i2c = I2C(0, sda=sda, scl=scl)
         self.oled = SSD1306_I2C(self.WIDTH, self.HEIGHT, self.i2c)
         self.buzzer = PWM(Pin(20))
-        self.ldr=ADC(Pin(27))
-        self.button=Pin(10,Pin.IN,Pin.PULL_DOWN)
-
+        self.ldr = ADC(Pin(27))
+        self.button = Pin(10, Pin.IN, Pin.PULL_DOWN)
 
         self.state_handlers = {
-            self.STATE_START: self.RUN_STATE_START,
-            self.STATE_GO: self.run_state_GO,
+            self.STATE_START: self.run_state_start,
+            self.STATE_GO: self.run_state_go,
         }
 
-        #define the input and output pins
         self.buzzer.freq(440)
-    def RUN_STATE_START(self):
+
+    def run_state_start(self):
         if self.state_counter == 0:
             self.oled.fill(0)
             self.oled.text("NIGHT and DAY", 10, 0)
@@ -142,30 +138,27 @@ class night_and_day:
             self.oled.fill(0)
             self.oled.show()
 
+    def change_word(self):
+        global NIGHT_OR_DAY
+        NIGHT_OR_DAY=round(urandom.uniform(0, 1))
+        
+        if NIGHT_OR_DAY==0:
+            self.oled.fill(0)
+            self.oled.text("---NIGHT---", 20, 30)
+            self.oled.show()
+        else:
+            self.oled.fill(0)
+            self.oled.text("---DAY---", 20, 30)
+            self.oled.show()
 
-    def changeWord(self):
-            global NIGHT_OR_DAY
-            NIGHT_OR_DAY=round(urandom.uniform(0,1))
-            
-            if NIGHT_OR_DAY==0:
-                self.oled.fill(0)
-                self.oled.text("---NIGHT---", 20, 30)
-                self.oled.show()
-            else:
-                self.oled.fill(0)
-                self.oled.text("---DAY---", 20, 30)
-                self.oled.show()
-
-
-
-    def run_state_GO(self):
+    def run_state_go(self):
         self.score = 0
         start = 1
         if self.state_counter == 0:
             while start == 1:
                 global gamerReaction
                 
-                self.changeWord()
+                self.change_word()
                 startTime=utime.ticks_ms()
                 #when LDR's data greater than 2000, gamer reaction '0'
                 while utime.ticks_diff(utime.ticks_ms(), startTime)<=2000:
@@ -181,7 +174,6 @@ class night_and_day:
                 self.buzzer.duty_u16(0)
                 if gamerReaction==NIGHT_OR_DAY:
                     self.score += 10
-
                 else:
                     self.score -= 10
                     self.is_routine_enabled = True
@@ -202,6 +194,7 @@ class night_and_day:
                     self.buzzer.duty_u16(0)
                     start = 0
                     self.is_routine_enabled = False
+
             if self.is_routine_enabled == True:
                 self.oled.fill(0)
                 self.oled.show()
@@ -224,13 +217,6 @@ class night_and_day:
             self.oled.fill(0)
             self.oled.show()
             utime.sleep(0.3)
-
-
-
-
-
-
-
     
     def run(self) -> None:
         while True:
@@ -239,12 +225,6 @@ class night_and_day:
             self.handler = self.state_handlers[self.state] # type: ignore
             self.handler()
 
-
-
-        
-
-
-
-night_and_day_object = night_and_day()
+night_and_day_object = NightAndDay()
 night_and_day_object.run()
 # NIGHT_and_DAY()
