@@ -90,6 +90,81 @@ def NIGHT_and_DAY():
             buzzer.duty_u16(0)
             break
 
+class Beeper:
+    buzzer = PWM(Pin(20))
+    button = Pin(10, Pin.IN, Pin.PULL_DOWN)
+    last_click_time_ms = 0
+    CLICK_DEBOUNCE_TIME = 200
+    click_counter = 0
+    
+    last_beep_time_ms = 0
+    beep_times = 0
+    beep_delay = 0
+    silence_delay = 0
+    beep_on = False
+    beep_patterns = (
+        (1, 50, 100),
+        (2, 50, 100),
+        (3, 50, 100),
+        (1, 500, 100),
+        (2, 250, 100),
+        (3, 125, 100)
+    )
+
+    def __init__(self) -> None:
+        self.buzzer.freq(440)
+
+    def button_click(self, pin):
+        if pin.value() == 0:
+            return
+        
+        now_ms = utime.ticks_ms()
+        if (now_ms - self.last_click_time_ms) < self.CLICK_DEBOUNCE_TIME:
+            return
+        
+        print(now_ms, 'button_click', self.click_counter)
+        self.last_click_time_ms = now_ms
+        times, delay, silence = self.beep_patterns[self.click_counter % len(self.beep_patterns)]
+        self.configure_beep(times, delay, silence)
+        self.click_counter += 1
+
+    def run(self):
+        self.button.irq(trigger=Pin.IRQ_FALLING, handler=self.button_click)
+        while True:
+            utime.sleep(0.01)
+            self.beep()
+
+    def beep(self):
+        if self.beep_times == 0:
+            return
+        
+        now_ms = utime.ticks_ms()
+        time_passed = now_ms - self.last_beep_time_ms
+        if self.beep_on and time_passed > self.beep_delay:
+            print(now_ms, 'beep silence cycle start', self.beep_times, self.beep_delay, self.silence_delay)
+            self.buzzer.duty_u16(0)
+            self.beep_on = False
+            self.last_beep_time_ms = now_ms
+            self.beep_times -= 1
+            return
+        
+        if self.beep_on == False and time_passed > self.silence_delay:
+            print(now_ms, 'beep on cycle start', self.beep_times, self.beep_delay, self.silence_delay)
+            self.buzzer.duty_u16(2000)
+            self.beep_on = True
+            self.last_beep_time_ms = now_ms
+            return
+        
+
+    def configure_beep(self, times, delay, silence):
+        print(utime.ticks_ms(), f"configure_beep {self.beep_times}!, {times}, {delay}, {silence}",)
+        if self.beep_times != 0:
+            return
+        
+        self.beep_times = times
+        self.beep_delay = delay
+        self.silence_delay = silence
+
 class NightAndDay:
     WIDTH = 128
     HEIGHT = 64
@@ -100,11 +175,17 @@ class NightAndDay:
     button: Pin
     STATE_START = "STATE_START"
     STATE_GO = "go"
+    STATE_LOOSE = "loose"
+    STATE_WIN = "win"
     state = STATE_START
     state_handlers = None
     state_counter = -1
-    is_routine_enabled = True
-    score = 0    
+    score = 0   
+    NIGHT_OR_DAY = None 
+    gamerReaction = None
+    buzzer_on_time = 0
+    beeper = Beeper()
+    startTime = 0
 
     #OLED Screen Settings
     def __init__(self):
@@ -119,6 +200,8 @@ class NightAndDay:
         self.state_handlers = {
             self.STATE_START: self.run_state_start,
             self.STATE_GO: self.run_state_go,
+            self.STATE_WIN: self.run_state_win,
+            self.STATE_LOOSE: self.run_state_loose
         }
 
         self.buzzer.freq(440)
@@ -131,6 +214,7 @@ class NightAndDay:
             self.oled.text("Press the Button", 0, 40)
             self.oled.text("to START!", 40, 55)
             self.oled.show()
+            self.beeper.configure_beep(1, 100, 0)
 
         if self.button.value() == 1:
             self.state = self.STATE_GO
@@ -139,77 +223,54 @@ class NightAndDay:
             self.oled.show()
 
     def change_word(self):
-        global NIGHT_OR_DAY
-        NIGHT_OR_DAY=round(urandom.uniform(0, 1))
-        
-        if NIGHT_OR_DAY==0:
-            self.oled.fill(0)
-            self.oled.text("---NIGHT---", 20, 30)
-            self.oled.show()
+        self.NIGHT_OR_DAY=round(urandom.uniform(0, 1))
+        self.oled.fill(0)
+        if self.NIGHT_OR_DAY==0:
+            self.oled.text("---NIGHT---", 20, 30)       
         else:
-            self.oled.fill(0)
             self.oled.text("---DAY---", 20, 30)
-            self.oled.show()
-
+            
+        self.oled.show()
+        
     def run_state_go(self):
-        self.score = 0
-        start = 1
         if self.state_counter == 0:
-            while start == 1:
-                global gamerReaction
-                
-                self.change_word()
-                startTime=utime.ticks_ms()
-                #when LDR's data greater than 2000, gamer reaction '0'
-                while utime.ticks_diff(utime.ticks_ms(), startTime)<=2000:
-                    if self.ldr.read_u16()>20000:
-                        gamerReaction=0
-                    #when LDR's data lower than 2000, gamer reaction '1'
-                    else:
-                        gamerReaction=1
-                    utime.sleep(0.01)
-                #buzzer working
-                self.buzzer.duty_u16(2000)
-                utime.sleep(0.05)
-                self.buzzer.duty_u16(0)
-                if gamerReaction==NIGHT_OR_DAY:
+            self.score = 0
+
+        if utime.ticks_diff(utime.ticks_ms(), self.startTime)>2000:
+            if self.state_counter != 0:
+                if self.gamerReaction == self.NIGHT_OR_DAY:
                     self.score += 10
                 else:
                     self.score -= 10
-                    self.is_routine_enabled = True
-                    start = 0
-                    
-                if self.score == 100:
-                    self.oled.fill(0)
-                    self.oled.show()
-                    self.oled.text("Congratulations", 10, 10)
-                    self.oled.text("Top Score: 100", 5, 35)
-                    self.oled.show()
-                    self.buzzer.duty_u16(2000)
-                    utime.sleep(0.1)
-                    self.buzzer.duty_u16(0)
-                    utime.sleep(0.1)
-                    self.buzzer.duty_u16(2000)
-                    utime.sleep(0.1)
-                    self.buzzer.duty_u16(0)
-                    start = 0
-                    self.is_routine_enabled = False
+                    self.state = self.STATE_LOOSE
+                    self.state_counter = -1
+                    return                    
 
-            if self.is_routine_enabled == True:
-                self.oled.fill(0)
-                self.oled.show()
-                self.oled.text("Game Over", 0, 18, 1)
-                self.oled.text("Your score " + str(self.score), 0,31)
-                self.oled.text("Press The button",0, 45)
-                self.oled.text("To REPEAT",0,55)
-                self.oled.show()
-                self.buzzer.duty_u16(2000)
-                utime.sleep(0.05)
-                self.buzzer.duty_u16(0)
-                utime.sleep(0.1)
-                self.buzzer.duty_u16(2000)
-                utime.sleep(0.1)
-                self.buzzer.duty_u16(0)
+                if self.score == 100:
+                    self.state = self.STATE_WIN
+                    self.state_counter = -1
+                    return
+                    
+            
+            self.change_word()
+            self.beeper.configure_beep(1,50,0)
+            self.startTime=utime.ticks_ms()
+        else:
+            if self.ldr.read_u16()>=20000:
+                self.gamerReaction=0            
+            else:
+                self.gamerReaction=1
+
+    def run_state_loose(self):
+        if self.state_counter == 0:
+            self.oled.fill(0)
+            self.oled.show()
+            self.oled.text("Game Over", 0, 18, 1)
+            self.oled.text("Your score " + str(self.score), 0,31)
+            self.oled.text("Press The button",0, 45)
+            self.oled.text("To REPEAT",0,55)
+            self.oled.show()
+            self.beeper.configure_beep(2, 150, 100)
 
         if self.button.value() == 1:
             self.state = self.STATE_START
@@ -217,14 +278,35 @@ class NightAndDay:
             self.oled.fill(0)
             self.oled.show()
             utime.sleep(0.3)
-    
+
+    def run_state_win(self):
+        if self.state_counter == 0:
+            self.oled.fill(0)
+            self.oled.show()
+            self.oled.text("Congratulations", 10, 10)
+            self.oled.text("Top Score: 100", 5, 35)
+            self.oled.text("Press The button",0, 45)
+            self.oled.text("To REPEAT",0,55)
+            self.oled.show()
+            self.beeper.configure_beep(3, 150, 100)
+
+        if self.button.value() == 1:
+            self.state = self.STATE_START
+            self.state_counter = -1
+            self.oled.fill(0)
+            self.oled.show()
+            utime.sleep(0.3)
+
     def run(self) -> None:
         while True:
             utime.sleep(0.01)
             self.state_counter += 1
+            self.beeper.beep()
             self.handler = self.state_handlers[self.state] # type: ignore
             self.handler()
 
 night_and_day_object = NightAndDay()
 night_and_day_object.run()
 # NIGHT_and_DAY()
+# beeper = Beeper()
+# beeper.run()
