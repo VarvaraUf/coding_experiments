@@ -306,7 +306,7 @@ class NightAndDay:
             self.handler()
 
 
-class Blink:
+class Blinker:
     pattern_index = -1
     led = Pin(7,Pin.OUT)
     button = Pin(10,Pin.IN,Pin.PULL_DOWN)
@@ -356,14 +356,12 @@ class Blink:
         self.button.irq(trigger=Pin.IRQ_FALLING, handler=self.on_button_click)
         while True:
             utime.sleep(0.005)
-            self.blink()
-            
-            
+            self.blink()            
 
 # night_and_day_object = NightAndDay()
 # night_and_day_object.run()
 # NIGHT_and_DAY()
 # beeper = Beeper()
 # beeper.run()
-blinck_object = Blink([(1,50,0),(2,100,100)])
+blinck_object = Blinker([(1,50,0),(2,100,100)])
 blinck_object.run()
