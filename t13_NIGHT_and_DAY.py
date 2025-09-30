@@ -305,8 +305,65 @@ class NightAndDay:
             self.handler = self.state_handlers[self.state] # type: ignore
             self.handler()
 
-night_and_day_object = NightAndDay()
-night_and_day_object.run()
+
+class Blink:
+    pattern_index = -1
+    led = Pin(7,Pin.OUT)
+    button = Pin(10,Pin.IN,Pin.PULL_DOWN)
+    blink_patterns = []
+    last_click_time_ms = 0
+    times = 0
+    on_ms = 0
+    off_ms = 0
+    last_toggle_time_ms = 0
+
+    def __init__(self, list):
+        self.blink_patterns = list
+
+    def on_button_click(self, pin):
+        if pin.value() == 0:
+            return
+        if (utime.ticks_ms() - self.last_click_time_ms) < 200:
+            return
+        
+        self.pattern_index += 1
+        if self.pattern_index == len(self.blink_patterns):
+            self.pattern_index = 0
+
+        self.last_click_time_ms = utime.ticks_ms()
+
+        self.times = self.blink_patterns[self.pattern_index][0]
+        self.on_ms = self.blink_patterns[self.pattern_index][1]
+        self.off_ms = self.blink_patterns[self.pattern_index][2]
+
+    def blink(self):
+        if self.times == 0: return
+
+        now = utime.ticks_ms()
+        time_passed = now - self.last_toggle_time_ms
+        led_on = self.led.value()
+
+        if led_on == 0 and time_passed >= self.off_ms:
+            print(now, "blink", self.blink_patterns[self.pattern_index])
+            self.led.value(1)
+            self.last_toggle_time_ms = now
+        elif led_on == 1 and time_passed >= self.on_ms:
+            self.led.value(0)
+            self.turn_off_time_ms = now
+            self.times -= 1
+
+    def run(self):
+        self.button.irq(trigger=Pin.IRQ_FALLING, handler=self.on_button_click)
+        while True:
+            utime.sleep(0.005)
+            self.blink()
+            
+            
+
+# night_and_day_object = NightAndDay()
+# night_and_day_object.run()
 # NIGHT_and_DAY()
 # beeper = Beeper()
 # beeper.run()
+blinck_object = Blink([(1,50,0),(2,100,100)])
+blinck_object.run()
