@@ -2,6 +2,7 @@ from machine import Pin, PWM, I2C
 from utime import sleep
 from picobricks import SSD1306_I2C
 import utime
+
 def digital_ruler():
     #define the libraries
     redLed=Pin(7,Pin.OUT)
@@ -20,8 +21,8 @@ def digital_ruler():
         
     #initialize digital pin 4 and 5 as an OUTPUT for OLED communication
     oled = SSD1306_I2C(WIDTH, HEIGHT,i2c)
-    measure=0
-    finalDistance=0
+    measure = 0
+    finalDistance = 0
 
     def getDistance():
         trigger.low()
@@ -62,3 +63,116 @@ def digital_ruler():
     button.irq(trigger=Pin.IRQ_RISING, handler=getMeasure)
     while True:
         pass
+
+class DigitalRuler:
+    redLed=Pin(7,Pin.OUT)
+    button=Pin(10,Pin.IN,Pin.PULL_DOWN)
+    buzzer=PWM(Pin(20,Pin.OUT))
+    buzzer.freq(392)
+    trigger = Pin(15, Pin.OUT)
+    echo = Pin(14, Pin.IN)
+
+    WIDTH = 128                                            
+    HEIGHT = 64                                       
+    
+    sda = Pin(4)
+    scl = Pin(5)
+    i2c = I2C(0, sda = sda, scl = scl)
+        
+    oled = SSD1306_I2C(WIDTH, HEIGHT, i2c)
+    measure = 0
+    finalDistance = 0
+    state_handlers = None
+    STATE_START = "start"
+    STATE_PROGRESS = "progress"
+    STATE_FINISH = "finish"
+    state_counter = -1
+    state = STATE_START
+    last_click_time_ms = 0
+    buzzer_time_on_ms = 0
+
+    def __init__(self):
+        self.state_handlers = {
+            self.STATE_START: self.run_state_start,
+            self.STATE_PROGRESS: self.run_state_progress,
+            self.STATE_FINISH: self.run_state_finish
+        }
+
+    def getDistance(self):
+        self.trigger.low()
+        utime.sleep_us(2)
+        self.trigger.high()
+        utime.sleep_us(5)
+        self.trigger.low()
+        while self.echo.value() == 0:
+            signaloff = utime.ticks_us()
+        while self.echo.value() == 1:
+            signalon = utime.ticks_us()
+        timepassed = int(signalon) - int(signaloff)
+        distance = (timepassed * 0.0343) / 2
+        return distance
+
+    def getMeasure(self):
+        for i in range(20):
+            self.measure += self.getDistance()
+            sleep(0.05)
+        self.finalDistance = (self.measure/20) + 1
+
+    def set_state(self,state):
+        self.state = state
+        self.state_counter = -1
+
+    def change_state_to_progress(self,pin):
+        if (utime.ticks_ms() - self.last_click_time_ms) >= 200:
+            self.set_state(self.STATE_PROGRESS)
+            self.last_click_time_ms = utime.ticks_ms()        
+
+    def change_state_to_start(self,pin):
+        if (utime.ticks_ms() - self.last_click_time_ms) >= 200:
+            self.set_state(self.STATE_START)
+            self.last_click_time_ms = utime.ticks_ms()
+
+    def run_state_start(self):
+        if self.state_counter == 0:
+            self.oled.fill(0)
+            self.oled.text("press the button",1,6)
+            self.oled.text("to start!",1,21)
+            self.oled.show()
+            self.button.irq(trigger=Pin.IRQ_RISING, handler=self.change_state_to_progress)
+        
+
+    def run_state_progress(self):
+        if self.state_counter == 0:
+            self.oled.fill(0)
+            self.oled.text("measure in", 2, 6)
+            self.oled.text("progress", 0, 21)
+            self.oled.show()
+            self.redLed.value(1)
+            self.getMeasure()
+            self.redLed.value(0)
+            self.set_state(self.STATE_FINISH)
+
+    def run_state_finish(self):
+        if self.state_counter == 0:
+            self.oled.fill(0)
+            self.oled.text(">Digital Ruller<", 2,5)
+            self.oled.text("Distance " + str(round(self.finalDistance)) +" cm", 0, 32)
+            self.oled.show()
+            self.buzzer.duty_u16(4000)
+            self.buzzer_time_on_ms = utime.ticks_ms()
+            self.measure=0
+            self.finalDistance=0
+            self.button.irq(trigger=Pin.IRQ_RISING, handler=self.change_state_to_start)
+
+        if (utime.ticks_ms() - self.buzzer_time_on_ms) >= 100:
+            self.buzzer.duty_u16(0)
+
+    def run(self):
+        while True:
+            utime.sleep(0.01)
+            self.state_counter += 1
+            handler = self.state_handlers[self.state] # type: ignore
+            handler()
+
+digital_ruler_object = DigitalRuler()
+digital_ruler_object.run()
