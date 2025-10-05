@@ -174,5 +174,66 @@ class DigitalRuler:
             handler = self.state_handlers[self.state] # type: ignore
             handler()
 
-digital_ruler_object = DigitalRuler()
-digital_ruler_object.run()
+class buzzer:
+    button = Pin(10,Pin.IN,Pin.PULL_DOWN)
+    buzzer = PWM(Pin(20,Pin.OUT))
+    sound_patterns = []
+    pattern_index = -1
+    last_click_time_ms = 0
+    times = 0
+    on_ms = 0
+    off_ms = 0
+    last_buzzer_toggle_ms = 0
+    last_toggle_time_ms = 0
+
+    def __init__(self,list):
+        self.sound_patterns = list
+        self.buzzer.freq(313)
+
+    def on_button_click(self,pin):
+        if pin.value() == 0:
+            return
+        
+        if (utime.ticks_ms() - self.last_click_time_ms) < 200:
+            return
+        
+        self.pattern_index += 1
+        if self.pattern_index == len(self.sound_patterns):
+            self.pattern_index = 0
+
+        self.last_click_time_ms = utime.ticks_ms()
+
+        self.times = self.sound_patterns[self.pattern_index][0]
+        self.on_ms = self.sound_patterns[self.pattern_index][1]
+        self.off_ms = self.sound_patterns[self.pattern_index][2]
+
+    def buzz(self):
+        if self.times == 0:
+            return
+        
+        now = utime.ticks_ms()
+
+        if now - self.last_buzzer_toggle_ms >= self.off_ms and self.buzzer.duty_u16() == 0:
+            self.buzzer.duty_u16(4000)
+            print(utime.ticks_ms(),"turn buzzer on")
+            self.last_buzzer_toggle_ms = utime.ticks_ms()
+        
+        if now - self.last_buzzer_toggle_ms >= self.on_ms and self.buzzer.duty_u16() == 4000:
+            self.buzzer.duty_u16(0)
+            print(utime.ticks_ms(),"turn buzzer off")
+            self.last_buzzer_toggle_ms = utime.ticks_ms()
+            self.times -= 1
+
+    def run(self):
+        self.button.irq(trigger=Pin.IRQ_RISING, handler=self.on_button_click)
+        while True:
+            sleep(0.05)
+            self.buzz()
+
+buzzer_object = buzzer([(1,50,500),(2,50,150),(3,500,50),(4,50,250),(5,150,250)])
+buzzer_object.run()
+        
+    
+
+# digital_ruler_object = DigitalRuler()
+# digital_ruler_object.run()
